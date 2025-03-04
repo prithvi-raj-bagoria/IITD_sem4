@@ -11,7 +11,7 @@ let letter        = ['a'-'z' 'A'-'Z']              (* Letters are case-insensiti
 let digit         = ['0'-'9']                      (* Digits 0-9 *)
 let id            = letter (letter | digit | '_')*   (* Identifier: starts with a letter *)
 
-let int_literal   = '-'? digit+                     (* Optional '-' followed by digits *)
+let int_literal  =  digit+                     (* positive digits *)
 let float_literal = int_literal? '.' digit*         (*1.2,0.2,0.*)
 let exp_literal = float_literal ('e' | 'E') ('+' | '-')? digit+ (*1.2e3, 1.2E3, 1.2e+3, 1.2e-3*)
 
