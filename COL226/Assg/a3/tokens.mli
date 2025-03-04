@@ -8,12 +8,13 @@ type token =
     | BOOL_LITERAL of bool     (* Boolean true/false values *)
     | INT_LITERAL of int       (* Integer literals *)
     | FLOAT_LITERAL of float   (* Floating point literals *)
+    | EXP_LITERAL of string     (* Exponential literals *)
     | STRING_LITERAL of string (* String literals *)
 
     (* Control keywords *)
     | IF
-    | THEN
     | ELSE
+    | ELSEIF
     | FOR
     | WHILE
     | LET
@@ -21,7 +22,7 @@ type token =
     (* Type keywords *)
     | BOOLEAN         (* for boolean type *)
     | INTEGER         (* for integer type *)
-    | SCALAR          (* for float/scalar type *)
+    | FLOAT          (* for float/FLOAT type *)
     | VECTOR          (* for vector type *)
     | MATRIX          (* for matrix type *)
 
