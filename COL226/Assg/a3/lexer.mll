@@ -15,15 +15,14 @@ let int_literal  =  digit+                     (* positive digits *)
 let float_literal = int_literal? '.' digit*         (*1.2,0.2,0.*)
 let exp_literal = float_literal ('e' | 'E') ('+' | '-')? digit+ (*1.2e3, 1.2E3, 1.2e+3, 1.2e-3*)
 
-let whitespace    = [' ' '\t' '\r' ]+          (* One or more whitespace characters *)
-let newline       = '\n'                      (* Newline character *)
+let whitespace    = [' ' '\t' '\r' '\n' ]+          (* One or more whitespace characters *)
 let string_literal = "\"" [^'"']* "\""              (* Text inside double quotes *)
 let sl_comment    = "//" [^'\n']*                  (* Single-line comment starting with // *)
 
 (* Rules Section *)
 rule token = parse
   (* Skip whitespace and comments *)
-  | whitespace | sl_comment | newline  { token lexbuf }
+  | whitespace | sl_comment { token lexbuf }
 
   | "/*"                     { comment 1 lexbuf }
   
