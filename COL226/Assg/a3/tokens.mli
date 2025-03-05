@@ -31,7 +31,7 @@ type token =
 
     (* Operators *)
     (* Arithmetic *)
-    | PLUS | MINUS | MUL | DIV | MOD  | DOT | ABS
+    | PLUS | MINUS | MUL | DIV | MOD  | DOT | DIM | MAG | TRANS | ABS | ANGLE
     (* Comparison *)
     | EQ | NEQ | LT | GT | LEQ | GEQ
     (* Boolean *)

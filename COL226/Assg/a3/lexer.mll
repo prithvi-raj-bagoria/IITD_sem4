@@ -46,8 +46,10 @@ rule token = parse
   | "<"      { LT }     | ">"      { GT }
   
   (* Special operators *)
-  | "."      { DOT }    | "abs"    { ABS }
+  |  "abs"    { ABS }
 
+  (*Vector and Matrix operations*)
+  
   (* Logical Operators - fixed to use standard symbols *)
   | "&&"     { AND }    | "||"     { OR }     | "!"      { NOT } | "^" { XOR }
   
