@@ -9,18 +9,18 @@
 (* Definitions Section *)
 let letter = ['a'-'z' 'A'-'Z']              (* Letters are case-insensitive *)
 let digit = ['0'-'9']                      (* Digits 0-9 *)
-let id = (letter | digit | '_' | "\'") (letter | digit | '_' | "\'")*   (* Identifier: starts with a letter *)
+let id = (letter | digit | '_' | '\'') (letter | digit | '_' | '\'')*   (* Identifier: starts with a letter *)
 
 let int_pos_literal   =  digit+                     (* Positive Integer *)
 let whitespace    = [' ' '\t' '\r' '\n' ]+          (* One or more whitespace characters *)
-let string_literal = "\"" [^'"']* "\""              (* Text inside double quotes *)
+let string_literal = '\"' [^'"']* '\"'              (* Text inside double quotes *)
 let sl_comment    = "//" [^'\n']*                  (* Single-line comment starting with // *)
 
 (* Rules Section *)
 rule token = parse
   (* Skip whitespace and comments *)
   | whitespace | sl_comment   { token lexbuf }
-  | "(*"    { comment 1 lexbuf } (* Nested comments *)
+  | "/*"    { comment 1 lexbuf } (* Nested comments *)
   
   (*input() and input(filename) filename are without quotes*)
   | "input()" { INPUT "" }  (* input without filename *)
@@ -55,7 +55,7 @@ rule token = parse
   | "<"      { LT }     | ">"      { GT }
   
   (* Logical Operators - fixed to use standard symbols *)
-  | "and"     { AND }    | "or"     { OR }     | "not"  { NOT } 
+  | "and"     { AND }    | "or"     { OR }     | "not"  { NOT } | "xor" { XOR }
 
   (* Assignment *)
   | ":="     { ASSIGN }

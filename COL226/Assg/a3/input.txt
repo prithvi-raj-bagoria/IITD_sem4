@@ -1,1 +1,181 @@
-Abc'123
+// =========================================
+// COMPREHENSIVE TOKEN TEST SUITE
+// For lexer.mll and tokens.mli
+// =========================================
+
+// ---- TESTING I/O COMMANDS ----
+input()              // Testing INPUT with empty string
+input(test1.txt)     // Testing INPUT with filename
+input(path/to/file.data)  // Testing INPUT with path
+print                // Testing PRINT token
+
+// ---- TESTING TYPE KEYWORDS ----
+bool                 // BOOLEAN token
+int                  // INT_POS token
+float                // FLOAT token
+vector               // VECTOR token
+matrix               // MATRIX token
+
+// ---- TESTING BOOLEAN LITERALS ----
+true                 // BOOL_LITERAL true
+false                // BOOL_LITERAL false
+
+// ---- TESTING INTEGER LITERALS ----
+0 1 42 100 9876543210   // Various INT_POS_LITERAL values
+
+// ---- TESTING FLOAT LITERALS ----
+// Standard decimal notation
+1.0 3.14159 0.5 1. .5
+// Scientific notation
+1e10 2.5e3 1.5e-4 .5E+6 3.40282347e+38 9.1093837e-31
+
+// ---- TESTING STRING LITERALS ----
+"This is a string"   // Standard string
+""                   // Empty string
+
+// ---- TESTING CONTROL STRUCTURES ----
+if                   // IF token
+elif                 // ELIF token
+else                 // ELSE token
+for                  // FOR token
+while                // WHILE token
+do                   // DO token
+
+// ---- TESTING IDENTIFIERS ----
+x y z                // Single letter identifiers
+foo bar baz          // Short identifiers
+snake_case           // With underscores
+camelCase            // Mixed case
+PascalCase           // Capital first letter
+a123 item45          // With numbers
+my_var_2             // Mixed style
+x' y'' var'''        // With apostrophes
+a'b'c'               // Mixed apostrophes
+
+// ---- TESTING SPECIAL OPERATORS ----
+abs                  // ABS token
+
+// ---- TESTING BITWISE OPERATORS ----
+&                    // BAND token
+|                    // BOR token
+^                    // BXOR token
+~                    // BNOT token
+<<                   // LSHIFT token
+>>                   // RSHIFT token
+
+// ---- TESTING ARITHMETIC OPERATORS ----
++                    // PLUS token
+-                    // MINUS token
+*                    // MUL token
+/                    // DIV token
+%                    // MOD token
+
+// ---- TESTING COMPARISON OPERATORS ----
+==                   // EQ token
+!=                   // NEQ token
+<                    // LT token
+>                    // GT token
+<=                   // LEQ token
+>=                   // GEQ token
+
+// ---- TESTING LOGICAL OPERATORS ----
+and                  // AND token
+or                   // OR token
+not                  // NOT token
+xor                    // XOR token
+
+// ---- TESTING ASSIGNMENT ----
+:=                   // ASSIGN token
+
+// ---- TESTING VECTOR AND MATRIX OPERATIONS ----
+.                    // DOT token
+len                  // DIM token
+mag                  // MAG token
+trans                // TRANS token
+angle                // ANGLE token
+
+// ---- TESTING DELIMITERS ----
+;                    // SEMICOLON token
+{                    // LBRACE token
+}                    // RBRACE token
+(                    // LPAREN token
+)                    // RPAREN token
+[                    // LBRACKET token
+]                    // RBRACKET token
+,                    // COMMA token
+
+// ---- TESTING COMMENT HANDLING ----
+// Single line comment
+/* This is a C-style comment */
+/* Nested /* comments */ should work too */
+
+// ---- TESTING WHITESPACE HANDLING ----
+
+
+
+// ---- TESTING COMPLEX EXPRESSIONS ----
+
+// Assignment and arithmetic
+x := 10;
+y := x + 5;
+z := (x * y) / (2 - 3);
+w := x % 3;
+
+// Control flow
+if (x > 10) {
+  y := x * 5;
+} elif (x > 5) {
+  y := x * 2;
+} else {
+  y := x;
+}
+
+// Loops
+for (i := 0; i < 10; i := i + 1) {
+  print "Loop iteration";
+}
+
+while (x > 0) {
+  x := x - 1;
+}
+
+do {
+  y := y + 1;
+} while (y < 100);
+
+// Logical expressions
+result := (x > y) and (z < w) or not (a == b);
+
+// Bitwise operations
+bits := a & b | c ^ (~d);
+shifted := (x << 2) + (y >> 1);
+
+// Vector and matrix operations
+v := [1, 2, 3];
+m := [[1, 0], [0, 1]];
+length := len v;
+magnitude := mag v;
+transformed := trans m;
+dp := v . v;  // Dot product
+theta := angle(v1, v2);
+abs_val := abs(x);
+
+// Type declarations
+bool flag := true;
+int count := 100;
+float pi := 3.14159;
+vector v3d := [x, y, z];
+matrix identity := [[1, 0], [0, 1]];
+
+// Mixed operations
+x := (a + b) * (c - d) / (e & f);
+y := abs(x) + mag(v) + len(m);
+
+// Testing I/O with complex expressions
+input(filename);
+print "Result: " + result;
+
+// ---- TESTING ERROR CASES (commented out) ----
+// "Unterminated string
+// (* Unterminated comment
+// @ # $ Invalid characters
