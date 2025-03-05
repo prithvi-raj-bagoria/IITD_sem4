@@ -7,27 +7,30 @@
 }
 
 (* Definitions Section *)
-let letter        = ['a'-'z' 'A'-'Z']              (* Letters are case-insensitive *)
-let digit         = ['0'-'9']                      (* Digits 0-9 *)
-let id            = letter (letter | digit | '_')*   (* Identifier: starts with a letter *)
+let letter = ['a'-'z' 'A'-'Z']              (* Letters are case-insensitive *)
+let digit = ['0'-'9']                      (* Digits 0-9 *)
+let id = letter (letter | digit | '_')*   (* Identifier: starts with a letter *)
 
-let int_literal  =  digit+                     (* positive digits *)
+let int_literal   =  digit+                     (* Optional '-' followed by digits *)
 let float_literal = int_literal? '.' digit*         (*1.2,0.2,0.*)
 let exp_literal = float_literal ('e' | 'E') ('+' | '-')? digit+ (*1.2e3, 1.2E3, 1.2e+3, 1.2e-3*)
 
 let whitespace    = [' ' '\t' '\r' '\n' ]+          (* One or more whitespace characters *)
+let newline      = "\\n"                      (* Newline character *)
 let string_literal = "\"" [^'"']* "\""              (* Text inside double quotes *)
 let sl_comment    = "//" [^'\n']*                  (* Single-line comment starting with // *)
 
 (* Rules Section *)
 rule token = parse
   (* Skip whitespace and comments *)
-  | whitespace | sl_comment { token lexbuf }
-
-  | "/*"                     { comment 1 lexbuf }
+  | whitespace | sl_comment | newline  { token lexbuf }
+  
+  (*input() and input(filename) filename are without quotes*)
+  | "input()" { INPUT "" }  (* input without filename *)
+  | "input(" ([^')']+ as filename) ")" { INPUT filename }  (* input with filename *)
   
   (* Keywords and I/O - made consistent as lowercase *)
-  | "input"  { INPUT }  | "print"  { PRINT }
+  | "print"  { PRINT }
   | "else if" { ELSEIF }
   | "if"     { IF }     | "else"   { ELSE }
   | "for"    { FOR }    | "while"  { WHILE }  | "let"    { LET }
@@ -82,7 +85,7 @@ and comment level = parse
 {
   (* Function to convert token to string for printing *)
   let string_of_token = function
-    | INPUT -> "INPUT"
+    | INPUT s -> sprintf "INPUT(%s)" s
     | PRINT -> "PRINT"
     | BOOL_LITERAL b -> sprintf "BOOL_LITERAL(%B)" b
     | INT_LITERAL i -> sprintf "INT_LITERAL(%d)" i

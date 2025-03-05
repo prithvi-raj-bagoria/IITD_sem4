@@ -1,7 +1,7 @@
 (* Token type definition for our language *)
 type token =
     (* I/O Commands *)
-    | INPUT 
+    | INPUT of string
     | PRINT 
 
     (* Literals *)
