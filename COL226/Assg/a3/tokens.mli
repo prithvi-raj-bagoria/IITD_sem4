@@ -6,22 +6,21 @@ type token =
 
     (* Literals *)
     | BOOL_LITERAL of bool     (* Boolean true/false values *)
-    | INT_LITERAL of int       (* Integer literals *)
+    | INT_POS_LITERAL of int       (* Integer literals *)
     | FLOAT_LITERAL of float   (* Floating point literals *)
-    | EXP_LITERAL of string     (* Exponential literals *)
     | STRING_LITERAL of string (* String literals *)
-
+   
     (* Control keywords *)
     | IF
+    | ELIF
     | ELSE
-    | ELSEIF
     | FOR
     | WHILE
-    | LET
+    | DO
 
     (* Type keywords *)
     | BOOLEAN         (* for boolean type *)
-    | INTEGER         (* for integer type *)
+    | INT_POS         (* for integer type *)
     | FLOAT          (* for float/FLOAT type *)
     | VECTOR          (* for vector type *)
     | MATRIX          (* for matrix type *)
@@ -29,15 +28,26 @@ type token =
     (* Identifiers for variables *)
     | ID of string
 
-    (* Operators *)
+    (* ---Operators--- *)
+    | ABS
+    
+    (*Bit operations*)
+    | BAND | BOR | BXOR | BNOT | LSHIFT | RSHIFT
+
     (* Arithmetic *)
-    | PLUS | MINUS | MUL | DIV | MOD  | DOT | DIM | MAG | TRANS | ABS | ANGLE
+    | PLUS | MINUS | MUL | DIV | MOD 
+
     (* Comparison *)
     | EQ | NEQ | LT | GT | LEQ | GEQ
+
     (* Boolean *)
     | AND | OR | NOT | XOR
+
     (* Assignment *)
     | ASSIGN          (* for ":=" assignment *)
+
+    (* Vector and Matrix operations *)
+    | DOT | DIM | MAG | TRANS | ANGLE
 
     (* Delimiters and punctuation *)
     | SEMICOLON
