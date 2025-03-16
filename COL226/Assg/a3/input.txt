@@ -1,181 +1,157 @@
-// =========================================
-// COMPREHENSIVE TOKEN TEST SUITE
-// For lexer.mll and tokens.mli
-// =========================================
+// =============================================
+// COMPREHENSIVE LEXICAL ANALYZER TEST SUITE
+// Based on Piazza clarifications
+// =============================================
 
-// ---- TESTING I/O COMMANDS ----
-input()              // Testing INPUT with empty string
-input(test1.txt)     // Testing INPUT with filename
-input(path/to/file.data)  // Testing INPUT with path
-print                // Testing PRINT token
+// --- 1. I/O COMMANDS ---
+input()                     // Input with no filename
+input(data.txt)             // Input with simple filename
+input(path/to/file.dat)     // Input with path
+print(x)                    // Print identifier with parentheses
 
-// ---- TESTING TYPE KEYWORDS ----
-bool                 // BOOLEAN token
-int                  // INT_POS token
-float                // FLOAT token
-vector               // VECTOR token
-matrix               // MATRIX token
+// --- 2. VARIABLE DECLARATIONS & IDENTIFIERS ---
+// Valid identifiers (start with letter)
+x y z counter matrix1 vector_3d result_matrix
 
-// ---- TESTING BOOLEAN LITERALS ----
-true                 // BOOL_LITERAL true
-false                // BOOL_LITERAL false
+// --- 3. TYPE DECLARATIONS ---
+bool flag;
+int count;
+float pi;
+vector v;
+matrix m;
 
-// ---- TESTING INTEGER LITERALS ----
-0 1 42 100 9876543210   // Various INT_POS_LITERAL values
+// --- 4. LITERALS ---
+// Boolean literals
+true false
 
-// ---- TESTING FLOAT LITERALS ----
-// Standard decimal notation
-1.0 3.14159 0.5 1. .5
-// Scientific notation
-1e10 2.5e3 1.5e-4 .5E+6 3.40282347e+38 9.1093837e-31
+// Integer literals - positive only
+0 1 42 1000 123456789
 
-// ---- TESTING STRING LITERALS ----
-"This is a string"   // Standard string
-""                   // Empty string
+// Float literals with proper scientific notation
+0.0 1.0 3.14159 .5 1. 2.71828
+1e10 2.5e3 1.5e-4 .5E+6 1.23e-10
 
-// ---- TESTING CONTROL STRUCTURES ----
-if                   // IF token
-elif                 // ELIF token
-else                 // ELSE token
-for                  // FOR token
-while                // WHILE token
-do                   // DO token
+// String literals
+"Hello, world!"
+""                      // Empty string
+"Special chars: !@#$%^&*()"
 
-// ---- TESTING IDENTIFIERS ----
-x y z                // Single letter identifiers
-foo bar baz          // Short identifiers
-snake_case           // With underscores
-camelCase            // Mixed case
-PascalCase           // Capital first letter
-a123 item45          // With numbers
-my_var_2             // Mixed style
-x' y'' var'''        // With apostrophes
-a'b'c'               // Mixed apostrophes
+// --- 5. BOOLEAN OPERATIONS ---
+not flag
+a and b
+x or y
+p xor q
 
-// ---- TESTING SPECIAL OPERATORS ----
-abs                  // ABS token
+// --- 6. ARITHMETIC OPERATIONS ---
+a + b
+c - d
+e * f
+g / h
+i % j                   // Modulo
+abs(x)                  // Absolute value
 
-// ---- TESTING BITWISE OPERATORS ----
-&                    // BAND token
-|                    // BOR token
-^                    // BXOR token
-~                    // BNOT token
-<<                   // LSHIFT token
->>                   // RSHIFT token
+// --- 7. COMPARISON OPERATIONS ---
+a == b                  // Equality
+c != d                  // Inequality
+e < f                   // Less than
+g > h                   // Greater than
+i <= j                  // Less than or equal
+k >= l                  // Greater than or equal
 
-// ---- TESTING ARITHMETIC OPERATORS ----
-+                    // PLUS token
--                    // MINUS token
-*                    // MUL token
-/                    // DIV token
-%                    // MOD token
+// --- 8. VECTOR OPERATIONS ---
+// Vector definition with dimension preceding (as specified in Piazza)
+5
+[1, 2, 3, 4, 5]               // Vector of size 5
 
-// ---- TESTING COMPARISON OPERATORS ----
-==                   // EQ token
-!=                   // NEQ token
-<                    // LT token
->                    // GT token
-<=                   // LEQ token
->=                   // GEQ token
+// Vector operations
+dot v1 v2              // Dot product
+mag v1                  // Magnitude
+dim v2                  // Dimension
+angle v1 v2             // Angle between vectors
 
-// ---- TESTING LOGICAL OPERATORS ----
-and                  // AND token
-or                   // OR token
-not                  // NOT token
-xor                    // XOR token
+// Vector declaration in variable assignment (per Piazza)
+vector v1 := 3
+[1, 2, 3];
 
-// ---- TESTING ASSIGNMENT ----
-:=                   // ASSIGN token
+// --- 9. MATRIX OPERATIONS ---
+// Matrix definition with dimensions preceding (as specified in Piazza)
+2,3
+[[1, 2, 3], [4, 5, 6]]  // 2x3 matrix
 
-// ---- TESTING VECTOR AND MATRIX OPERATIONS ----
-.                    // DOT token
-len                  // DIM token
-mag                  // MAG token
-trans                // TRANS token
-angle                // ANGLE token
+// Matrix operations
+trans m1                // Transpose
+det m2                  // Determinant
 
-// ---- TESTING DELIMITERS ----
-;                    // SEMICOLON token
-{                    // LBRACE token
-}                    // RBRACE token
-(                    // LPAREN token
-)                    // RPAREN token
-[                    // LBRACKET token
-]                    // RBRACKET token
-,                    // COMMA token
+// Matrix declaration in variable assignment
+matrix m1 := 2,2
+[[1, 2], [3, 4]];
 
-// ---- TESTING COMMENT HANDLING ----
-// Single line comment
-/* This is a C-style comment */
-/* Nested /* comments */ should work too */
+// --- 10. CONTROL STRUCTURES ---
+// Assignment
+x := 5;
+y := a + b;
 
-// ---- TESTING WHITESPACE HANDLING ----
+// If statements
+if (x > 0) {
+    y := x * 2;
+}
 
-
-
-// ---- TESTING COMPLEX EXPRESSIONS ----
-
-// Assignment and arithmetic
-x := 10;
-y := x + 5;
-z := (x * y) / (2 - 3);
-w := x % 3;
-
-// Control flow
-if (x > 10) {
-  y := x * 5;
-} elif (x > 5) {
-  y := x * 2;
+if (a < b) {
+    c := a + b;
 } else {
-  y := x;
+    c := a - b;
 }
 
-// Loops
+// For loops
 for (i := 0; i < 10; i := i + 1) {
-  print "Loop iteration";
+    sum := sum + i;
 }
 
+// While loops
 while (x > 0) {
-  x := x - 1;
+    x := x - 1;
 }
 
 do {
-  y := y + 1;
+    y := y * 2;
 } while (y < 100);
 
-// Logical expressions
-result := (x > y) and (z < w) or not (a == b);
+// --- 11. COMMENTS ---
+// This is a single line comment
 
-// Bitwise operations
-bits := a & b | c ^ (~d);
-shifted := (x << 2) + (y >> 1);
+/* This is a 
+   multi-line comment */
 
-// Vector and matrix operations
-v := [1, 2, 3];
-m := [[1, 0], [0, 1]];
-length := len v;
-magnitude := mag v;
-transformed := trans m;
-dp := v . v;  // Dot product
-theta := angle(v1, v2);
-abs_val := abs(x);
+/* This is a /* nested */ comment */
 
-// Type declarations
-bool flag := true;
-int count := 100;
-float pi := 3.14159;
-vector v3d := [x, y, z];
-matrix identity := [[1, 0], [0, 1]];
+// --- 12. COMPLEX PROGRAMS ---
+// Matrix determinant calculation
+det_val := det(A);
+if (det_val != 0) {
+    print(inv);
+} else {
+    print(x);  // Print only handles identifiers
+}
 
-// Mixed operations
-x := (a + b) * (c - d) / (e & f);
-y := abs(x) + mag(v) + len(m);
+// --- 13. EDGE CASES ---
+// Scientific notation edge cases
+1.0e10
+1e-5
+.5e+10
 
-// Testing I/O with complex expressions
-input(filename);
-print "Result: " + result;
+// --- 14. VECTOR AND MATRIX ARITHMETIC ---
+// Vector addition and scalar multiplication
+3
+[1, 2, 3]
+3
+[4, 5, 6]
+// The addition would be represented as:
+v1 + v2
 
-// ---- TESTING ERROR CASES (commented out) ----
-// "Unterminated string
-// (* Unterminated comment
-// @ # $ Invalid characters
+// Matrix multiplication
+2,2
+[[1, 2], [3, 4]]
+2,1
+[[5], [6]]
+// The multiplication would be represented as:
+m1 * m2

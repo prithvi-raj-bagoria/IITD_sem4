@@ -4,19 +4,8 @@ type token =
     | INPUT of string
     | PRINT 
 
-    (* Literals *)
-    | BOOL_LITERAL of bool     (* Boolean true/false values *)
-    | INT_POS_LITERAL of int       (* Integer literals *)
-    | FLOAT_LITERAL of float   (* Floating point literals *)
-    | STRING_LITERAL of string (* String literals *)
-   
-    (* Control keywords *)
-    | IF
-    | ELIF
-    | ELSE
-    | FOR
-    | WHILE
-    | DO
+    (* Identifiers for variables *)
+    | ID of string
 
     (* Type keywords *)
     | BOOLEAN         (* for boolean type *)
@@ -24,15 +13,16 @@ type token =
     | FLOAT          (* for float/FLOAT type *)
     | VECTOR          (* for vector type *)
     | MATRIX          (* for matrix type *)
-
-    (* Identifiers for variables *)
-    | ID of string
-
+    
+    (*Data Section*)
+    (* Constants *)
+    | BOOL_LITERAL of bool     (* Boolean true/false values *)
+    | INT_POS_LITERAL of int       (* positive Integer literals *)
+    | FLOAT_LITERAL of float   (* Floating point literals *)
+    | STRING_LITERAL of string (* String literals *)
+   
     (* ---Operators--- *)
     | ABS
-    
-    (*Bit operations*)
-    | BAND | BOR | BXOR | BNOT | LSHIFT | RSHIFT
 
     (* Arithmetic *)
     | PLUS | MINUS | MUL | DIV | MOD 
@@ -43,12 +33,18 @@ type token =
     (* Boolean *)
     | AND | OR | NOT | XOR
 
-    (* Assignment *)
-    | ASSIGN          (* for ":=" assignment *)
-
     (* Vector and Matrix operations *)
-    | DOT | DIM | MAG | TRANS | ANGLE
+    | DOT | DIM | MAG | TRANS | ANGLE | DET
 
+
+    (* Control keywords *)
+    | ASSIGN          (* for ":=" assignment *)
+    | IF
+    | ELSE
+    | FOR
+    | WHILE
+    | DO
+    
     (* Delimiters and punctuation *)
     | SEMICOLON
     | LBRACE | RBRACE        (* { } *)
