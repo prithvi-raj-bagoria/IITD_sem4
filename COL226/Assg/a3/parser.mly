@@ -16,9 +16,9 @@
     MatrixLit(rows, cols, rows_list)
 %}
 
-(* Token declarations (must match tokens.mli if defined there) *)
+(* Token declarations (must match tokens.mli ) *)
 %token <bool> BOOL_LITERAL
-%token <int> INT_LITERAL
+%token <int> INT_POS_LITERAL
 %token <float> FLOAT_LITERAL
 %token <string> STRING_LITERAL
 %token <string> ID
@@ -134,16 +134,16 @@ expr:
   ;
 
 vector_construction:
-  INT_LITERAL vector_lit                                     { make_vector_lit (Some $1) $2 }
+  INT_POS_LITERAL vector_lit                                     { make_vector_lit (Some $1) $2 }
   ;
 
 matrix_construction:
-  INT_LITERAL COMMA INT_LITERAL matrix_lit                   { make_matrix_lit (Some $1) (Some $3) $4 }
+  INT_POS_LITERAL COMMA INT_POS_LITERAL matrix_lit                   { make_matrix_lit (Some $1) (Some $3) $4 }
   ;
 
 literal:
   BOOL_LITERAL                                               { BoolLit($1) }
-| INT_LITERAL                                                { IntLit($1) }
+| INT_POS_LITERAL                                                { IntLit($1) }
 | FLOAT_LITERAL                                              { FloatLit($1) }
 | STRING_LITERAL                                             { StringLit($1) }
 | vector_lit                                                 { VectorLit(None, $1) }

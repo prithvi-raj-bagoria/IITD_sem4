@@ -108,11 +108,3 @@ and comment level = parse
   | "*/"     { if level = 1 then token lexbuf else comment (level - 1) lexbuf }
   | _        { comment level lexbuf }
   | eof      { raise (LexError "Unterminated comment") }
-
-{
-  (* Simplified token string conversion for debugging if needed *)
-  let string_of_token token =
-    match token with
-    | EOF -> "EOF"
-    | _ -> "TOKEN"  (* Generic representation to avoid detailed token printing *)
-}
