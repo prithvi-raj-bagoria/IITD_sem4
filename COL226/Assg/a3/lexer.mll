@@ -4,7 +4,6 @@
   open Lexing (* Required for lexbuf type *)
   exception LexError of string  (* Custom exception for lexical errors *)
 
-  (*Tokens definition*)
   (* Token type definition for our language *)
 type token =
     (* I/O Commands *)
