@@ -1,245 +1,131 @@
 {
-  (* Header Section *)
-  open Printf (* Required for string formatting *)
-  open Lexing (* Required for lexbuf type *)
-  exception LexError of string  (* Custom exception for lexical errors *)
+  (* Header Section - Use Parser tokens *)
+  open Parser
+  open Printf
+  open Lexing
+  
+  (* Custom exception for lexical errors *)
+  exception SyntaxError of string
 
-  (* Token type definition for our language *)
-type token =
-    (* I/O Commands *)
-    | INPUT of string
-    | PRINT 
+  (* Update the current line number *)
+  let incr_lineno lexbuf =
+    let pos = lexbuf.lex_curr_p in
+    lexbuf.lex_curr_p <- { pos with
+      pos_lnum = pos.pos_lnum + 1;
+      pos_bol = pos.pos_cnum
+    }
 
-    (* Identifiers for variables *)
-    | ID of string
-
-    (* Type keywords *)
-    | BOOLEAN         (* for boolean type *)
-    | INT_POS         (* for integer type *)
-    | FLOAT          (* for float/FLOAT type *)
-    | VECTOR          (* for vector type *)
-    | MATRIX          (* for matrix type *)
-    
-    (*Data Section*)
-    (* Constants *)
-    | BOOL_LITERAL of bool     (* Boolean true/false values *)
-    | INT_POS_LITERAL of int       (* positive Integer literals *)
-    | FLOAT_LITERAL of float   (* Floating point literals *)
-    | STRING_LITERAL of string (* String literals *)
-   
-    (* ---Operators--- *)
-    | ABS
-
-    (* Arithmetic *)
-    | PLUS | MINUS | MUL | DIV | MOD 
-
-    (* Comparison *)
-    | EQ | NEQ | LT | GT | LEQ | GEQ
-
-    (* Boolean *)
-    | AND | OR | NOT | XOR
-
-    (* Vector and Matrix operations *)
-    | DOT | DIM | MAG | TRANS | ANGLE | DET
-
-
-    (* Control keywords *)
-    | ASSIGN          (* for ":=" assignment *)
-    | IF
-    | THEN
-    | ELSE
-    | FOR
-    | WHILE
-    | DO
-    
-    (* Delimiters and punctuation *)
-    | SEMICOLON
-    | LBRACE | RBRACE        (* { } *)
-    | LPAREN | RPAREN        (* ( ) *)
-    | LBRACKET | RBRACKET    (* [ ] *)
-    | COMMA
-
-    | EOF
+  (* Error reporting *)
+  let report_error lexbuf msg =
+    let pos = lexbuf.lex_curr_p in
+    let line = pos.pos_lnum in
+    let col = pos.pos_cnum - pos.pos_bol in
+    Printf.fprintf stderr "Lexical error at line %d, character %d: %s\n" line col msg;
+    failwith "Lexical error"
 }
 
 (* Definitions Section *)
-let letter = ['a'-'z' 'A'-'Z']              (* Letters are case-insensitive *)
-let digit = ['0'-'9']                      (* Digits 0-9 *)
-let id = (letter | digit | '_') (letter | digit | '_' | "\'")*   (* Identifier: starts with a letter or digit or _*)
+let letter = ['a'-'z' 'A'-'Z']
+let digit = ['0'-'9']
+let id = (letter | digit) (letter | digit | '_' | '\'')*
 
-let int_pos_literal = digit+               (* Positive integers only *)
-let float_literal = int_pos_literal? '.' digit*         (* 1.2, 0.2, 0. *)
-let exp_literal = (int_pos_literal|float_literal) ('e' | 'E') ('+' | '-')? digit+ (* 1.2e3, 1.2E3 *)
-
-let whitespace = [' ' '\t' '\r' '\n']+     (* Whitespace including newlines *)
-let string_literal = "\"" [^'"']* "\""     (* Text inside double quotes *)
-let sl_comment = "//" [^'\n']*             (* Single-line comment *)
+let int_literal = digit+  (*Only for positive integers*)
+let float_literal = digit+ '.' digit* | digit* '.' digit+
+let exp_literal = (float_literal | int_literal) ['e''E'] ['-''+']? digit+
+let whitespace = [' ' '\t' '\r' ]+
+let string_literal = '"' [^'"']* '"'
+let sl_comment = "//" [^'\n']*
 
 (* Rules Section *)
 rule token = parse
   (* Skip whitespace and comments *)
-  | whitespace | sl_comment  { token lexbuf }
+  | whitespace | sl_comment    { token lexbuf }
 
-  | "/*"                     { comment 1 lexbuf }
+  | '\n'      { incr_lineno lexbuf; token lexbuf } (* Handle newlines and update position *)
+
+  | "/*"          { comment 1 lexbuf }
   
   (* I/O Commands *)
-  | "input()" { INPUT "" }  (* input without filename *)
-  | "input(" ([^')']+ as filename) ")" { INPUT filename }  (* input with filename *)
+  | "input()" { INPUT("") }
+  | "input(" ([^')']+ as filename) ")" { INPUT(filename) }
   | "print"  { PRINT }
   
   (* Type keywords *)
-  | "bool"   { BOOLEAN } 
-  | "int"    { INT_POS } 
+  | "bool"   { BOOL } 
+  | "int"    { INT } 
   | "float"  { FLOAT }
   | "vector" { VECTOR }  
   | "matrix" { MATRIX }
-  | "true"   { BOOL_LITERAL true }  
-  | "false"  { BOOL_LITERAL false }
+
+  | "abs"   { ABS }
+
+    (* Vector and Matrix operations *)
+  | "."     { DOT }    
+  | "dim"   { DIM }
+  | "mag"   { MAG }
+  | "trans" { TRANS }
+  | "angle" { ANGLE }
+  | "det"   { DET }
   
-  (*Data  section*)
-  (* Literals or Constants *)
-  | exp_literal as f { FLOAT_LITERAL(float_of_string f) }
+  (* Control keywords - MOVED BEFORE IDENTIFIERS *)
+  | "if"    { IF }     
+  | "then"  { THEN }
+  | "else"  { ELSE }
+  | "for"   { FOR }    
+  | "while" { WHILE }  
+  | "do"    { DO }
+  
+  (*--Data Section--*)
+  (* Literals/Constants *)
+  | "true" | "false" as bl {BOOL_LITERAL(bool_of_string bl)}
+  | exp_literal as e  { FLOAT_LITERAL(float_of_string e) }
   | float_literal as f { FLOAT_LITERAL(float_of_string f) }
-  | int_pos_literal as i { INT_POS_LITERAL(int_of_string i) }
+  | int_literal as i   { INT_LITERAL(int_of_string i) }
   | string_literal as s  { STRING_LITERAL(String.sub s 1 (String.length s - 2)) }
-  | id as identifier     { ID identifier }
+  | id as name      { ID(name) }  (* Moved identifiers AFTER keywords *)
 
   (* Logical Operators *)
   | "&&"    { AND }    
-  | "||"     { OR }     
-  | "!"    { NOT } 
-  | "^"    { XOR }
+  | "||"    { OR }     
+  | "!"     { NOT } 
+  | "^"     { XOR }
 
-  (* Arithmetic Operators some are overloaded for matrix and vector too like addition ,etc*)
-  | "abs"    { ABS } (*Special defined for int and floats*)
-  | "+"      { PLUS }   (*Overloaded*)
-  | "-"      { MINUS }  (*Overloaded*)
-  | "*"      { MUL }      (*Overloaded*)
-  | "/"      { DIV }    
-  | "%"      { MOD }
+  (* Arithmetic Operators some are overloade for matrix/vector addition or multiplication*)
+  | "+"     { PLUS }
+  | "-"     { MINUS }
+  | "*"     { MUL }
+  | "/"     { DIV }
+  | "%"     { MOD }
 
-  (* Comparison Operators only for integers*)
-  | "=="     { EQ }     
-  | "!="     { NEQ }
-  | "<="     { LEQ }    
-  | ">="     { GEQ }
-  | "<"      { LT }     
-  | ">"      { GT }
+  (* Comparison Operators *)
+  | "=="    { EQ }     
+  | "!="    { NEQ }
+  | "<="    { LEQ }    
+  | ">="    { GEQ }
+  | "<"     { LT }     
+  | ">"     { GT }
   
-  (* Vector and Matrix operations *)
-  | "."      { DOT }    
-  | "dim"    { DIM }
-  | "mag"    { MAG }
-  | "trans"  { TRANS }
-  | "angle"  { ANGLE }
-  | "det"    { DET }
+
 
   (* Control keywords *)
-  | "if"     { IF }     
-  | "then"   { THEN }
-  | "else"   { ELSE }
-  | "for"    { FOR }    
-  | "while"  { WHILE }  
-  | "do"     { DO }
-  
-  (* Assignment *)
-  | ":="     { ASSIGN }
+  | ":="    { ASSIGN }
   
   (* Delimiters *)
-  | ";"      { SEMICOLON }
-  | "{"      { LBRACE }  
-  | "}"      { RBRACE }
-  | "("      { LPAREN }  
-  | ")"      { RPAREN }
-  | "["      { LBRACKET }
-  | "]"      { RBRACKET }
-  | ","      { COMMA }
+  | ";"     { SEMICOLON }
+  | "{"     { LBRACE }  
+  | "}"     { RBRACE }
+  | "("     { LPAREN }  
+  | ")"     { RPAREN }
+  | "["     { LBRACKET }
+  | "]"     { RBRACKET }
+  | ","     { COMMA }
   
-  | eof      { EOF }
-  | _ as c   { raise (LexError (sprintf "Invalid token: %c" c)) }
+  | eof     { EOF }
+  | _ as c  { report_error lexbuf ("Unexpected character: " ^ String.make 1 c) }
 
 (* Handling nested comments *)
 and comment level = parse
   | "/*"     { comment (level + 1) lexbuf }
   | "*/"     { if level = 1 then token lexbuf else comment (level - 1) lexbuf }
   | _        { comment level lexbuf }
-  | eof      { raise (LexError "Unterminated comment") }
-
-{
-  (* Function to convert token to string for printing *)
-  let string_of_token = function
-    | INPUT s -> Printf.sprintf "INPUT(%s)" s
-    | PRINT -> "PRINT"
-    | BOOL_LITERAL b -> Printf.sprintf "BOOL_LITERAL(%B)" b
-    | INT_POS_LITERAL i -> Printf.sprintf "INT_LITERAL(%d)" i
-    | FLOAT_LITERAL f -> Printf.sprintf "FLOAT_LITERAL(%f)" f
-    | STRING_LITERAL s -> Printf.sprintf "STRING_LITERAL(%s)" s
-    | IF -> "IF"
-    | THEN -> "THEN"
-    | ELSE -> "ELSE"
-    | FOR -> "FOR"
-    | WHILE -> "WHILE"
-    | DO -> "DO"
-    | BOOLEAN -> "BOOLEAN"
-    | INT_POS -> "INTEGER"
-    | FLOAT -> "FLOAT"
-    | VECTOR -> "VECTOR"
-    | MATRIX -> "MATRIX"
-    | ID id -> Printf.sprintf "ID(%s)" id
-    | PLUS -> "PLUS"
-    | MINUS -> "MINUS"
-    | MUL -> "MUL"
-    | DIV -> "DIV"
-    | MOD -> "MOD"
-    | DOT -> "DOT"
-    | ABS -> "ABS"
-    | DIM -> "DIM"      
-    | MAG -> "MAG"       
-    | TRANS -> "TRANS"   
-    | ANGLE -> "ANGLE"
-    | DET -> "DET" 
-    | EQ -> "EQ"
-    | NEQ -> "NEQ"
-    | LT -> "LT"
-    | GT -> "GT"
-    | LEQ -> "LEQ"
-    | GEQ -> "GEQ"
-    | AND -> "AND"
-    | OR -> "OR"
-    | NOT -> "NOT"
-    | XOR -> "XOR"
-    | ASSIGN -> "ASSIGN"
-    | SEMICOLON -> "SEMICOLON"
-    | LBRACE -> "LBRACE"
-    | RBRACE -> "RBRACE"
-    | LPAREN -> "LPAREN"
-    | RPAREN -> "RPAREN"
-    | LBRACKET -> "LBRACKET"
-    | RBRACKET -> "RBRACKET"
-    | COMMA -> "COMMA"
-    | EOF -> "EOF"
-
-  (* Main function that reads from input.txt and prints tokens *)
-  let main () =
-    try
-      let input_channel = stdin in
-      let lexbuf = Lexing.from_channel input_channel in
-      
-      (* Recursive function to print all tokens *)
-      let rec print_tokens () =
-        let token = token lexbuf in
-        Printf.printf "%s\n" (string_of_token token);
-        if token <> EOF then print_tokens ()
-      in
-      
-      (* Start printing tokens *)
-      print_tokens ();
-      close_in input_channel
-    with
-    | LexError msg -> Printf.printf "Lexical error: %s\n" msg
-    | Sys_error msg -> Printf.printf "System error: %s\n" msg
-    | _ -> Printf.printf "Unexpected error during lexical analysis\n"
-
-  (* Execute the main function *)
-  let () = main ()
-}
+  | eof      { raise (SyntaxError "Unterminated comment") }

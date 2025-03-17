@@ -1,0 +1,44 @@
+// Advanced test case: Vector calculus operations
+
+// Define 3D vectors
+vector 3 v1 := 3 [1, 2, 3];
+vector 3 v2 := 3 [4, 5, 6];
+vector 3 v3 := 3 [7, 8, 9];
+
+// Vector addition and scalar multiplication
+vector 3 sum := v1 + v2;
+vector 3 scaled := v1 * 2;
+
+// Dot product
+float dot_prod := v1 . v2;
+print("Dot product:");
+print(dot_prod);
+
+// Vector magnitude (norm)
+float mag1 := mag v1;
+float mag2 := mag v2;
+print("Magnitudes:");
+print(mag1);
+print(mag2);
+
+// Angle between vectors
+float theta := angle(v1, v2);
+print("Angle between v1 and v2:");
+print(theta);
+
+// Vector projections
+// proj_v2_onto_v1 = (v1 . v2 / |v1|^2) * v1
+float scalar_proj := dot_prod / (mag1 * mag1);
+vector 3 vec_proj := v1 * scalar_proj;
+print("Projection of v2 onto v1:");
+print(vec_proj);
+
+// Computing orthogonal vector
+vector 3 orthogonal := v2 - vec_proj;
+print("Orthogonal component:");
+print(orthogonal);
+
+// Verify orthogonality (dot product should be close to zero)
+float verify := orthogonal . v1;
+print("Verification (should be near zero):");
+print(verify);

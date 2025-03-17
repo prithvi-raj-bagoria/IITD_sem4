@@ -1,0 +1,22 @@
+// Basic test case: Expressions and variable operations
+
+// Variable declarations & assignments
+int a;
+a := 5;
+int b := 10;
+
+// Arithmetic expressions
+int result := (a + b) * 3 - 2;
+int mod_result := b % a;
+
+// Boolean expressions
+bool flag := true;
+bool condition := a < b && flag;
+bool logical := !flag || (a == 5);
+
+// Using parentheses for grouping
+int grouped := (a + b) * (a - 2);
+
+// Print statement
+print(result);
+print(condition);
