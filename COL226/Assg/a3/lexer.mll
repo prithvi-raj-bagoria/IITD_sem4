@@ -64,7 +64,7 @@ type token =
 (* Definitions Section *)
 let letter = ['a'-'z' 'A'-'Z']              (* Letters are case-insensitive *)
 let digit = ['0'-'9']                      (* Digits 0-9 *)
-let id = letter (letter | digit | '_' | "\'")*   (* Identifier: starts with a letter *)
+let id = (letter | digit | '_') (letter | digit | '_' | "\'")*   (* Identifier: starts with a letter or digit or _*)
 
 let int_pos_literal = digit+               (* Positive integers only *)
 let float_literal = int_pos_literal? '.' digit*         (* 1.2, 0.2, 0. *)
@@ -95,7 +95,29 @@ rule token = parse
   | "true"   { BOOL_LITERAL true }  
   | "false"  { BOOL_LITERAL false }
   
-  (* Comparison Operators *)
+  (*Data  section*)
+  (* Literals or Constants *)
+  | exp_literal as f { FLOAT_LITERAL(float_of_string f) }
+  | float_literal as f { FLOAT_LITERAL(float_of_string f) }
+  | int_pos_literal as i { INT_POS_LITERAL(int_of_string i) }
+  | string_literal as s  { STRING_LITERAL(String.sub s 1 (String.length s - 2)) }
+  | id as identifier     { ID identifier }
+
+  (* Logical Operators *)
+  | "&&"    { AND }    
+  | "||"     { OR }     
+  | "!"    { NOT } 
+  | "^"    { XOR }
+
+  (* Arithmetic Operators some are overloaded for matrix and vector too like addition ,etc*)
+  | "abs"    { ABS } (*Special defined for int and floats*)
+  | "+"      { PLUS }   (*Overloaded*)
+  | "-"      { MINUS }  (*Overloaded*)
+  | "*"      { MUL }      (*Overloaded*)
+  | "/"      { DIV }    
+  | "%"      { MOD }
+
+  (* Comparison Operators only for integers*)
   | "=="     { EQ }     
   | "!="     { NEQ }
   | "<="     { LEQ }    
@@ -103,9 +125,6 @@ rule token = parse
   | "<"      { LT }     
   | ">"      { GT }
   
-  (* Special operators *)
-  | "abs"    { ABS }
-
   (* Vector and Matrix operations *)
   | "."      { DOT }    
   | "dim"    { DIM }
@@ -114,19 +133,6 @@ rule token = parse
   | "angle"  { ANGLE }
   | "det"    { DET }
 
-  (* Logical Operators *)
-  | "and"    { AND }    
-  | "or"     { OR }     
-  | "not"    { NOT } 
-  | "xor"    { XOR }
-  
-  (* Arithmetic Operators *)
-  | "+"      { PLUS }   
-  | "-"      { MINUS }
-  | "*"      { MUL }    
-  | "/"      { DIV }    
-  | "%"      { MOD }
-  
   (* Control keywords *)
   | "if"     { IF }     
   | "else"   { ELSE }
@@ -146,13 +152,6 @@ rule token = parse
   | "["      { LBRACKET }
   | "]"      { RBRACKET }
   | ","      { COMMA }
-  
-  (* Literals *)
-  | (exp_literal | float_literal) 
-                         { FLOAT_LITERAL(float_of_string (Lexing.lexeme lexbuf)) }
-  | int_pos_literal as i { INT_POS_LITERAL(int_of_string i) }
-  | string_literal as s  { STRING_LITERAL(String.sub s 1 (String.length s - 2)) }
-  | id as identifier     { ID identifier }
   
   | eof      { EOF }
   | _ as c   { raise (LexError (sprintf "Invalid token: %c" c)) }
