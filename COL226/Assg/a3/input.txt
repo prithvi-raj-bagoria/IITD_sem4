@@ -1,157 +1,147 @@
-// =============================================
-// COMPREHENSIVE LEXICAL ANALYZER TEST SUITE
-// Based on Piazza clarifications
-// =============================================
+// Testing comments
+// Single line comment
+/* Multi-line
+   comment spanning
+   multiple lines */
+/* Nested /* comment */ works */
 
-// --- 1. I/O COMMANDS ---
-input()                     // Input with no filename
-input(data.txt)             // Input with simple filename
-input(path/to/file.dat)     // Input with path
-print(x)                    // Print identifier with parentheses
+// Testing I/O commands
+input()
+input(test_file.txt)
+input(data/matrix/m1.dat)
+print(x'23)
 
-// --- 2. VARIABLE DECLARATIONS & IDENTIFIERS ---
-// Valid identifiers (start with letter)
-x y z counter matrix1 vector_3d result_matrix
+// Testing type keywords and literals
+bool flag := true;
+bool another := false;
+int count := 42;
+float pi := 3.14159;
 
-// --- 3. TYPE DECLARATIONS ---
-bool flag;
-int count;
-float pi;
-vector v;
-matrix m;
+// Testing vector with dimension first (as per Piazza)
+// Format: dimension followed by vector on next line
+2
+[1,2]
 
-// --- 4. LITERALS ---
-// Boolean literals
-true false
+// Testing matrix with dimensions first (as per Piazza)
+// Format: rows,cols followed by matrix on next line
+2,3
+[[1,2,3],[4,5,6]]
 
-// Integer literals - positive only
-0 1 42 1000 123456789
+// Testing identifiers
+a b c
+x_1 y_2 variable_name
+camelCase snake_case PascalCase
+counter123
 
-// Float literals with proper scientific notation
-0.0 1.0 3.14159 .5 1. 2.71828
-1e10 2.5e3 1.5e-4 .5E+6 1.23e-10
+// Testing scientific notation for floats (as requested)
+1.23e5
+3.0e-2
+1e3
+.5e+10
+1.e6
 
-// String literals
-"Hello, world!"
-""                      // Empty string
-"Special chars: !@#$%^&*()"
-
-// --- 5. BOOLEAN OPERATIONS ---
-not flag
-a and b
-x or y
-p xor q
-
-// --- 6. ARITHMETIC OPERATIONS ---
+// Testing operators
+// Arithmetic operators
 a + b
 c - d
-e * f
-g / h
-i % j                   // Modulo
-abs(x)                  // Absolute value
+x * y
+total / count
+remainder % divisor
 
-// --- 7. COMPARISON OPERATIONS ---
-a == b                  // Equality
-c != d                  // Inequality
-e < f                   // Less than
-g > h                   // Greater than
-i <= j                  // Less than or equal
-k >= l                  // Greater than or equal
+// Comparison operators
+a == b
+c != d
+x < y
+min <= max
+max >= threshold
+score > passing
 
-// --- 8. VECTOR OPERATIONS ---
-// Vector definition with dimension preceding (as specified in Piazza)
-5
-[1, 2, 3, 4, 5]               // Vector of size 5
+// Logical operators
+condition1 and condition2
+flag1 or flag2
+not finished
+bit1 xor bit2
 
-// Vector operations
-dot v1 v2              // Dot product
-mag v1                  // Magnitude
-dim v2                  // Dimension
-angle v1 v2             // Angle between vectors
+// Special operators
+abs(x)
+dim v
+mag vector1
+trans matrix1
+angle(v1, v2)
+det m
 
-// Vector declaration in variable assignment (per Piazza)
-vector v1 := 3
-[1, 2, 3];
-
-// --- 9. MATRIX OPERATIONS ---
-// Matrix definition with dimensions preceding (as specified in Piazza)
-2,3
-[[1, 2, 3], [4, 5, 6]]  // 2x3 matrix
-
-// Matrix operations
-trans m1                // Transpose
-det m2                  // Determinant
-
-// Matrix declaration in variable assignment
-matrix m1 := 2,2
-[[1, 2], [3, 4]];
-
-// --- 10. CONTROL STRUCTURES ---
-// Assignment
-x := 5;
-y := a + b;
-
-// If statements
-if (x > 0) {
-    y := x * 2;
-}
-
-if (a < b) {
-    c := a + b;
+// Testing assignment and control structures
+x := 10;
+if (x > 5) {
+  y := x * 2;
 } else {
-    c := a - b;
+  y := x / 2;
 }
 
-// For loops
 for (i := 0; i < 10; i := i + 1) {
-    sum := sum + i;
+  sum := sum + i;
 }
 
-// While loops
-while (x > 0) {
-    x := x - 1;
+while (count > 0) {
+  count := count - 1;
 }
 
 do {
-    y := y * 2;
-} while (y < 100);
+  val := val * 2;
+} while (val < 100);
 
-// --- 11. COMMENTS ---
-// This is a single line comment
-
-/* This is a 
-   multi-line comment */
-
-/* This is a /* nested */ comment */
-
-// --- 12. COMPLEX PROGRAMS ---
-// Matrix determinant calculation
-det_val := det(A);
-if (det_val != 0) {
-    print(inv);
-} else {
-    print(x);  // Print only handles identifiers
-}
-
-// --- 13. EDGE CASES ---
-// Scientific notation edge cases
-1.0e10
-1e-5
-.5e+10
-
-// --- 14. VECTOR AND MATRIX ARITHMETIC ---
-// Vector addition and scalar multiplication
+// Testing complex vector/matrix declarations and operations
+// Vector declaration with dimension
 3
+[10, 20, 30]
+
+v1 := 3
 [1, 2, 3]
-3
-[4, 5, 6]
-// The addition would be represented as:
-v1 + v2
 
-// Matrix multiplication
+v2 := 3
+[4, 5, 6]
+
+// Matrix declaration with dimensions
 2,2
 [[1, 2], [3, 4]]
-2,1
-[[5], [6]]
-// The multiplication would be represented as:
-m1 * m2
+
+m1 := 2,2
+[[1, 0], [0, 1]]
+
+// Vector and matrix operations
+dot := v1 . v2;
+length := dim v1;
+magnitude := mag v1;
+transposed := trans m1;
+theta := angle(v1, v2);
+determinant := det m1;
+
+// Testing mixed expressions
+result := abs((x + y) * (z - w)) + (a and b) or (c < d);
+
+// Testing delimiters
+a, b, c;
+{x; y; z}
+(p * q)
+[i, j, k]
+
+// Testing handling of whitespace
+a+b
+c - d
+x*     y
+total/ count
+
+// Testing float variations
+0.5
+.25
+1.
+123.456
+1.23e+10
+7.e-5
+
+// Vector of integers and floats
+3
+[1, 2, 3]
+
+3
+[1.1, 2.2, 3.3]
