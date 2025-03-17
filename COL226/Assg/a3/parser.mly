@@ -19,9 +19,8 @@
 (* Token declarations (must match tokens.mli ) *)
 %token <bool> BOOL_LITERAL
 %token <int> INT_POS_LITERAL
-%token <float> FLOAT_LITERAL
-%token <string> STRING_LITERAL
-%token <string> ID
+%token <float> FLOAT_LITERAL 
+%token <string> STRING_LITERAL ID
 
 (* Keywords *)
 %token INPUT PRINT
@@ -88,8 +87,7 @@ stmt:
 | ID ASSIGN expr SEMICOLON                                  { AssignStmt($1, $3) }
 | IF LPAREN expr RPAREN block_stmt                          { IfStmt($3, $5, None) }
 | IF LPAREN expr RPAREN block_stmt ELSE block_stmt          { IfStmt($3, $5, Some $7) }
-| FOR LPAREN expr SEMICOLON expr SEMICOLON expr RPAREN block_stmt
-                                                            { ForStmt($3, $5, $7, $9) }
+| FOR LPAREN expr SEMICOLON expr SEMICOLON expr RPAREN block_stmt { ForStmt($3, $5, $7, $9) }
 | WHILE LPAREN expr RPAREN block_stmt                       { WhileStmt($3, $5) }
 | DO block_stmt WHILE LPAREN expr RPAREN SEMICOLON          { DoWhileStmt($2, $5) }
   ;

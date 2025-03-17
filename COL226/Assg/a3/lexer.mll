@@ -46,6 +46,7 @@ type token =
     (* Control keywords *)
     | ASSIGN          (* for ":=" assignment *)
     | IF
+    | THEN
     | ELSE
     | FOR
     | WHILE
@@ -135,6 +136,7 @@ rule token = parse
 
   (* Control keywords *)
   | "if"     { IF }     
+  | "then"   { THEN }
   | "else"   { ELSE }
   | "for"    { FOR }    
   | "while"  { WHILE }  
@@ -173,6 +175,7 @@ and comment level = parse
     | FLOAT_LITERAL f -> Printf.sprintf "FLOAT_LITERAL(%f)" f
     | STRING_LITERAL s -> Printf.sprintf "STRING_LITERAL(%s)" s
     | IF -> "IF"
+    | THEN -> "THEN"
     | ELSE -> "ELSE"
     | FOR -> "FOR"
     | WHILE -> "WHILE"
