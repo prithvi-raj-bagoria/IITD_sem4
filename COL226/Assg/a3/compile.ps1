@@ -31,16 +31,20 @@ try {
     ocamlc -c lexer.ml
     if (-not $?) { throw "Failed to compile lexer.ml" }
 
+    Write-Host "Compiling typechecker..."
+    ocamlc -c typechecker.ml
+    if (-not $?) { throw "Failed to compile typechecker.ml" }
+
     Write-Host "Compiling main driver..."
     ocamlc -c main.ml
     if (-not $?) { throw "Failed to compile main.ml" }
 
-    # Link to create executable
-    Write-Host "Linking to create parser.exe..."
-    ocamlc -o parser.exe ast.cmo parser.cmo lexer.cmo main.cmo
-    if (-not $?) { throw "Failed to link" }
+    # Link to create the main executable
+    Write-Host "Linking to create main.exe..."
+    ocamlc -o main.exe ast.cmo parser.cmo lexer.cmo typechecker.cmo main.cmo
+    if (-not $?) { throw "Failed to link main.exe" }
 
-    Write-Host "Compilation successful. You can run the parser with: .\parser.exe <input_file>"
+    Write-Host "Compilation successful! Run your project with: .\main.exe <input_file>"
 } 
 catch {
     Write-Host "Error: $_" -ForegroundColor Red
@@ -50,7 +54,7 @@ catch {
 # Function to clean up compiled files
 function Clean-Build {
     Write-Host "Cleaning build files..."
-    Remove-Item -ErrorAction SilentlyContinue *.cmo, *.cmi, parser.ml, parser.mli, lexer.ml, parser_driver.exe
+    Remove-Item -ErrorAction SilentlyContinue *.cmo, *.cmi, parser.ml, parser.mli, lexer.ml, main.exe
     Write-Host "Clean complete."
 }
 

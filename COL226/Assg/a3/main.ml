@@ -2,6 +2,7 @@ open Ast
 open Lexer
 open Parser
 open Lexing
+open Typechecker
 
 (* Helper for printing positions *)
 let print_position lexbuf =
@@ -104,12 +105,19 @@ let rec string_of_expr = function
   | DET(e) -> "DET(" ^ string_of_expr e ^ ")"
   | VectorLit(dim, elements) -> 
       let dim_str = match dim with 
-        | d -> string_of_int d 
+        | IntLit(d) -> string_of_int d
+        | _ -> failwith "Vector dimension must be an integer literal"
       in
       "Vector(" ^ dim_str ^ ", [" ^ String.concat "; " (List.map string_of_expr elements) ^ "])"
   | MatrixLit(rows, cols, elements) -> 
-      let rows_str =  string_of_int rows in
-      let cols_str =   string_of_int cols in
+      let rows_str = match rows with
+        | IntLit(r) -> string_of_int r
+        | _ -> failwith "Matrix rows must be an integer literal"
+      in
+      let cols_str = match cols with
+        | IntLit(c) -> string_of_int c
+        | _ -> failwith "Matrix columns must be an integer literal"
+      in
       "Matrix(" ^ rows_str ^ " x " ^ cols_str ^ ", [" ^ 
         String.concat "; " (List.map (fun row -> "[" ^ String.concat "; " (List.map string_of_expr row) ^ "]") elements) ^ "])"
   | Index(e, idx1, idx2_opt) ->
@@ -125,8 +133,8 @@ let rec string_of_expr = function
 
 let rec string_of_stmt = function
   | ExprStmt(e) -> "ExprStmt(" ^ string_of_expr e ^ ")"
-  | DeclStmt(id, typ, None) -> "DeclStmt(\"" ^ id ^ "\", " ^ string_of_type typ ^ ")"
-  | DeclStmt(id, typ, Some e) -> "DeclStmt(\"" ^ id ^ "\", " ^ string_of_type typ ^ ", " ^ string_of_expr e ^ ")"
+  | DeclStmt(id, typ, None) -> "DeclStmt(\"" ^ id ^ "\", " ^ Typechecker.string_of_type typ ^ ")"
+  | DeclStmt(id, typ, Some e) -> "DeclStmt(\"" ^ id ^ "\", " ^ Typechecker.string_of_type typ ^ ", " ^ string_of_expr e ^ ")"
   | AssignStmt(id, e) -> "AssignStmt(\"" ^ id ^ "\", " ^ string_of_expr e ^ ")"
   | IfStmt(cond, then_block, else_block_opt) ->
       let else_str = match else_block_opt with
@@ -143,15 +151,6 @@ let rec string_of_stmt = function
   | Block(stmts) -> string_of_block stmts
 
 and string_of_block stmts = "Block[" ^ String.concat "; " (List.map string_of_stmt stmts) ^ "]"
-
-and string_of_type = function
-  | BoolType -> "bool"
-  | IntType -> "int"
-  | FloatType -> "float"
-  | VectorType(dim) -> "vector(" ^ string_of_int dim ^ ")"
-  | MatrixType(r, c) -> 
-      if r = 0 && c = 0 then "matrix" 
-      else "matrix(" ^ string_of_int r ^ "," ^ string_of_int c ^ ")"
 
 let string_of_program = function
   | Program(stmts) -> "Program([" ^ String.concat "; " (List.map string_of_stmt stmts) ^ "])"
@@ -255,10 +254,22 @@ let rec string_of_expr_tree expr indent =
       node_indent ^ "DET\n" ^ 
       string_of_expr_tree e last_child_indent
   | VectorLit(dim, elements) -> 
-      node_indent ^ "VectorLit (dim=" ^ string_of_int dim ^ ")\n" ^
+      let dim_str = match dim with 
+        | IntLit(d) -> string_of_int d
+        | _ -> failwith "Vector dimension must be an integer literal"
+      in
+      node_indent ^ "VectorLit (dim=" ^ dim_str ^ ")\n" ^
       string_list_expr_tree elements (child_indent ^ "│  ") (last_child_indent ^ "   ")
   | MatrixLit(rows, cols, elements) -> 
-      node_indent ^ "MatrixLit (" ^ string_of_int rows ^ "x" ^ string_of_int cols ^ ")\n" ^
+      let rows_str = match rows with
+        | IntLit(r) -> string_of_int r
+        | _ -> failwith "Matrix rows must be an integer literal"
+      in
+      let cols_str = match cols with
+        | IntLit(c) -> string_of_int c
+        | _ -> failwith "Matrix columns must be an integer literal"
+      in
+      node_indent ^ "MatrixLit (" ^ rows_str ^ "x" ^ cols_str ^ ")\n" ^
       string_matrix_expr_tree elements (child_indent ^ "│  ") (last_child_indent ^ "   ")
   | Index(e, idx1, idx2_opt) ->
       let idx_str = match idx2_opt with
@@ -311,11 +322,11 @@ let rec string_of_stmt_tree stmt indent =
   | DeclStmt(id, typ, None) -> 
       node_indent ^ "DeclStmt\n" ^ 
       node_indent ^ "│   var: " ^ id ^ "\n" ^
-      last_indent ^ "type: " ^ string_of_type typ
+      last_indent ^ "type: " ^ Typechecker.string_of_type typ
   | DeclStmt(id, typ, Some e) -> 
       node_indent ^ "DeclStmt\n" ^ 
       node_indent ^ "│   var: " ^ id ^ "\n" ^
-      node_indent ^ "│   type: " ^ string_of_type typ ^ "\n" ^
+      node_indent ^ "│   type: " ^ Typechecker.string_of_type typ ^ "\n" ^
       string_of_expr_tree e last_child_indent
   | AssignStmt(id, e) -> 
       node_indent ^ "AssignStmt\n" ^ 
@@ -371,6 +382,81 @@ let string_of_program_tree = function
   | Program(stmts) -> 
       "Program\n" ^ string_of_block_tree stmts ""
 
+(* Helper function to extract line numbers from AST nodes *)
+let extract_line_info lexbuf =
+  let pos = lexbuf.lex_curr_p in
+  (pos.pos_lnum, pos.pos_cnum - pos.pos_bol)
+
+(* Modified typechecking with line tracking *)
+let typecheck_with_locations ast =
+  let line_map = ref [] in
+  
+  (* Build a map of line numbers *)
+  let rec process_stmt stmt line =
+    match stmt with
+    | ExprStmt(e) -> 
+        line_map := (stmt, line) :: !line_map;
+        line + 1
+    | DeclStmt(_, _, _) -> 
+        line_map := (stmt, line) :: !line_map;
+        line + 1
+    | AssignStmt(_, _) -> 
+        line_map := (stmt, line) :: !line_map;
+        line + 1
+    | IfStmt(_, then_block, else_opt) ->
+        line_map := (stmt, line) :: !line_map;
+        let new_line = process_block then_block (line + 1) in
+        (match else_opt with
+         | None -> new_line
+         | Some else_blk -> process_block else_blk new_line)
+    | WhileStmt(_, block) ->
+        line_map := (stmt, line) :: !line_map;
+        process_block block (line + 1)
+    | DoWhileStmt(block, _) ->
+        line_map := (stmt, line) :: !line_map;
+        process_block block (line + 1)
+    | ForStmt(_, _, _, block) ->
+        line_map := (stmt, line) :: !line_map;
+        process_block block (line + 1)
+    | Block(stmts) ->
+        line_map := (stmt, line) :: !line_map;
+        process_block stmts (line + 1)
+  
+  and process_block stmts line =
+    List.fold_left (fun l stmt -> process_stmt stmt l) line stmts
+  in
+  
+  let process_ast = function
+    | Program(stmts) -> process_block stmts 1
+  in
+  
+  (* Process the AST to build line map *)
+  let _ = process_ast ast in
+  
+  (* Run the actual typechecker *)
+  let run_typechecker () =
+    (* Set location before checking each statement *)
+    let rec check_stmt env stmt =
+      let line = try List.assoc stmt !line_map with Not_found -> 1 in
+      Typechecker.with_loc line 0 (fun () -> Typechecker.type_stmt env stmt)
+    
+    and check_block env stmts =
+      List.fold_left check_stmt env stmts
+    in
+    
+    match ast with
+    | Program(stmts) -> check_block [] stmts
+  in
+  
+  try
+    let _ = run_typechecker () in
+    print_endline "\027[32mType checking succeeded!\027[0m"
+  with
+  | Typechecker.TypeError(msg, line, col) ->
+      print_endline ("\027[31mType error at line " ^ string_of_int line ^ 
+                    ", column " ^ string_of_int col ^ ": " ^ msg ^ "\027[0m");
+      exit 1
+
 (* Main driver *)
 let () =
   try
@@ -404,12 +490,6 @@ let () =
                            pos_lnum = 1;
                          };
     
-    (* First, collect and print all tokens *)
-    print_endline "Lexical tokens:";
-    let tokens = collect_tokens lexbuf in
-    List.iter (fun token -> print_endline (token_to_string token)) tokens;
-    print_endline "";
-    
     (* Reset lexbuf for parsing *)
     let lexbuf = Lexing.from_string !input in
     lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with
@@ -422,12 +502,26 @@ let () =
       print_endline "Parsing input...";
       let ast = Parser.program Lexer.token lexbuf in
       
+      (* Type checking *)
+      print_endline "Type checking...";
+      
+      (* Call typechecker with location tracking *)
+      typecheck_with_locations ast;
+      
+      (* If no type error was found, print the AST *)
       print_endline "\nAbstract Syntax Tree:";
-      print_endline (string_of_program_tree ast)
+      print_endline (string_of_program_tree ast);
+
     with
     | Parsing.Parse_error ->
-        prerr_endline ("Syntax error at " ^ print_position lexbuf)
-    
+        prerr_endline ("\027[31mSyntax error at " ^ print_position lexbuf ^ "\027[0m");
+        exit 1
+    | Lexer.SyntaxError msg ->
+        prerr_endline ("\027[31mLexical error at " ^ print_position lexbuf ^ ": " ^ msg ^ "\027[0m");
+        exit 1
+    | End_of_file ->
+        prerr_endline ("\027[31mUnexpected end of file during parsing at " ^ print_position lexbuf ^ "\027[0m");
+        exit 1
   with
   | Sys_error msg -> prerr_endline ("System error: " ^ msg)
   | Failure msg -> prerr_endline ("Error: " ^ msg)

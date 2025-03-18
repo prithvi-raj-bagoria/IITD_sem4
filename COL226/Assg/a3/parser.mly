@@ -15,7 +15,6 @@
         raise (Failure ("Vector dimension mismatch at " ^ get_pos () ^ ": expected " ^ 
                string_of_int d ^ " elements, got " ^ string_of_int (List.length elements)))
     | _ -> ()
-  
   (* Extract elements from vector literals *)
   let extract_vector_elements = function
     | Ast.VectorLit(_, elements) -> elements
@@ -59,6 +58,10 @@
 %left DOT
 %nonassoc MAG DIM TRANS DET ABS ANGLE
 %nonassoc LBRACKET
+%nonassoc MATRIX_COMMA /* Higher precedence than VECTOR_BRACKET */
+%nonassoc VECTOR_BRACKET
+/* Add a %nonassoc token for empty productions */
+%nonassoc LOWEST
 
 %start program
 %type <Ast.program> program
@@ -77,6 +80,14 @@ stmt:
   | type_spec ID SEMICOLON { DeclStmt($2, $1, None) }
   | type_spec ID ASSIGN expr SEMICOLON { DeclStmt($2, $1, Some $4) }
   | ID ASSIGN expr SEMICOLON { AssignStmt($1, $3) }
+  | ID LBRACKET expr RBRACKET LBRACKET expr RBRACKET ASSIGN expr SEMICOLON { 
+      (* Handle matrix element assignment A[i][j] := expr using existing Assign node *)
+      ExprStmt(Assign($1, $9)) 
+    }
+  | ID LBRACKET expr RBRACKET ASSIGN expr SEMICOLON { 
+      (* Handle vector element assignment A[i] := expr using existing Assign node *)
+      ExprStmt(Assign($1, $6)) 
+    }
   | IF LPAREN expr RPAREN LBRACE stmt_list RBRACE { IfStmt($3, $6, None) }
   | IF LPAREN expr RPAREN LBRACE stmt_list RBRACE ELSE LBRACE stmt_list RBRACE { IfStmt($3, $6, Some $10) }
   | FOR LPAREN for_init SEMICOLON expr SEMICOLON for_update RPAREN LBRACE stmt_list RBRACE { ForStmt($3, $5, $7, $10) }
@@ -113,10 +124,8 @@ type_spec:
   | BOOL { BoolType }
   | INT { IntType }
   | FLOAT { FloatType }
-  | VECTOR { VectorType(3) } /* Default to dimension 3 */
-  | VECTOR INT_LITERAL { VectorType($2) } /* Explicit dimension */
-  | MATRIX { MatrixType(0, 0) } /* Default unspecified dimensions */
-  | MATRIX INT_LITERAL COMMA INT_LITERAL { MatrixType($2,$4) }
+  | VECTOR { VectorType }
+  | MATRIX { MatrixType }
 
 expr:
   | simple_expr { $1 }
@@ -143,41 +152,45 @@ expr:
   | ANGLE LPAREN expr COMMA expr RPAREN { ANGLE($3, $5) }
   | TRANS expr { TRANS($2) }
   | DET expr { DET($2) }
+
+simple_expr:
+  | INT_LITERAL { IntLit($1) } /* Simple integer literal */
+  | LBRACKET vector_elements RBRACKET { VectorLit(IntLit(List.length $2), $2) } /* Vector literal */
+  | LBRACKET matrix_rows RBRACKET { 
+      let rows = IntLit(List.length $2) in
+      let cols = if rows <> IntLit(0) then IntLit(List.length (List.hd $2)) else IntLit(0) in
+      MatrixLit(rows, cols, $2) 
+    } /* Matrix literal */
+  | ID { Var($1) }
   | array_access { $1 }
+  | BOOL_LITERAL { BoolLit($1) }
+  | FLOAT_LITERAL { FloatLit($1) }
+  | STRING_LITERAL { StringLit($1) }
+  | INPUT { Input(None) }
+  | INPUT LPAREN STRING_LITERAL RPAREN { Input(Some $3) }
+  | PRINT LPAREN expr RPAREN { Print($3) }
+  | LPAREN expr RPAREN { $2 }
+
+/* Define what a vector can contain */
+vector_elements:
+  | /* empty */ { [] }
+  | non_empty_vector_elements { $1 }
+
+non_empty_vector_elements:
+  | INT_LITERAL { [IntLit($1)] }
+  | FLOAT_LITERAL { [FloatLit($1)] }
+  | INT_LITERAL COMMA non_empty_vector_elements { IntLit($1) :: $3 }
+  | FLOAT_LITERAL COMMA non_empty_vector_elements { FloatLit($1) :: $3 }
+
+/* Define matrix rows */
+matrix_rows:
+  | LBRACKET vector_elements RBRACKET %prec  VECTOR_BRACKET{ [$2] }
+  | LBRACKET vector_elements RBRACKET COMMA matrix_rows %prec MATRIX_COMMA{ $2 :: $5 }
 
 array_access:
   /* Restrict array access to IDs only. */
   | ID LBRACKET expr RBRACKET { Index(Var($1), $3, None) }
   | ID LBRACKET expr RBRACKET LBRACKET expr RBRACKET { Index(Var($1), $3, Some($6)) }
 
-simple_expr:
-  | INT_LITERAL LBRACKET int_list RBRACKET { VectorLit($1, $3) }
-  | INT_LITERAL LBRACKET float_list RBRACKET { VectorLit($1, $3) }
-  | INT_LITERAL COMMA INT_LITERAL LBRACKET row_list RBRACKET { MatrixLit($1, $3, $5) }
-  | INT_LITERAL { IntLit($1) }
-  | BOOL_LITERAL { BoolLit($1) }
-  | FLOAT_LITERAL { FloatLit($1) }
-  | STRING_LITERAL { StringLit($1) }
-  | ID { Var($1) }
-  | INPUT { Input(None) }
-  | INPUT LPAREN STRING_LITERAL RPAREN { Input(Some $3) }
-  | PRINT LPAREN expr RPAREN { Print($3) }
-  | LPAREN expr RPAREN { $2 }
-
-int_list:
-  | INT_LITERAL  { [IntLit($1)] }
-  | INT_LITERAL COMMA int_list  { IntLit($1) :: $3 }
-
-float_list:
-  | FLOAT_LITERAL  { [FloatLit($1)] }
-  | FLOAT_LITERAL COMMA float_list  { FloatLit($1) :: $3 }
-  
-row:
-  | LBRACKET int_list RBRACKET { $2 }
-  | LBRACKET float_list RBRACKET { $2 }
-
-row_list:
-  | row { [$1] }
-  | row COMMA row_list { $1 :: $3 }
 
 %%

@@ -5,8 +5,8 @@ type typ =
   | BoolType
   | IntType
   | FloatType
-  | VectorType of int 
-  | MatrixType of int  * int 
+  | VectorType 
+  | MatrixType 
 
 (* Expression definitions *)
 type expr =
@@ -38,8 +38,8 @@ type expr =
   | ANGLE of expr * expr
   | TRANS of expr
   | DET of expr
-  | VectorLit of int  * expr list
-  | MatrixLit of int * int  * expr list list
+  | VectorLit of expr * expr list
+  | MatrixLit of expr * expr  * expr list list
   | Index of expr * expr * expr option  (* Modified: third argument is now an option *)
   | Input of string option
   | Print of expr
