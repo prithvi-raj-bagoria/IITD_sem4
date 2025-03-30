@@ -1,0 +1,37 @@
+// Type error test cases - these should generate appropriate errors
+
+// Type mismatch in assignment
+bool b := 5;  // Error: cannot assign int to bool
+
+// Type mismatch in operations
+int i := 10;
+bool b := true;
+int error1 := i + b;  // Error: cannot add int and bool
+
+// Invalid vector operations
+vector v := [1, 2, 3];
+float f := v + 5;  // Error: cannot add vector and float directly
+
+// Invalid matrix operations
+matrix m := [[1, 2], [3, 4]];
+vector error2 := m + v;  // Error: cannot add matrix and vector
+
+// Invalid function arguments
+float error3 := mag(5);  // Error: mag requires vector, got int
+float error4 := det(v);  // Error: det requires matrix, got vector
+
+// Invalid index access
+int error5 := v[1.5];  // Error: vector index must be int
+int error6 := m[0];    // Error: matrix needs two indices
+
+// Invalid control flow conditions
+if (5) {  // Error: condition must be boolean
+    print(1);
+}
+
+while (i) {  // Error: condition must be boolean
+    i := i - 1;
+}
+
+// Type errors in complex expressions
+float error7 := (v . v) + (m * m);  // Error: cannot add float and matrix

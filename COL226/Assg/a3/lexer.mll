@@ -1,5 +1,5 @@
-{
-  (* Header Section - Use Parser tokens *)
+ {
+  (* Header Section - Use tokens defined in parser.mly*)
   open Parser
   open Printf
   open Lexing
@@ -27,11 +27,11 @@
 (* Definitions Section *)
 let letter = ['a'-'z' 'A'-'Z']
 let digit = ['0'-'9']
-let id = (letter | digit) (letter | digit | '_' | '\'')*
+let id = letter (letter | digit | '_' | '\'')* (*Identifier starts with letter only*)
 
-let int_literal = digit+  (*Only for positive integers*)
-let float_literal = digit+ '.' digit* | digit* '.' digit+
-let exp_literal = (float_literal | int_literal) ['e''E'] ['-''+']? digit+
+let int_literal = digit+  (*Only for positive integers to handle 2-3 as INT_LITERAL(2) MINUS INT_LITERAL(3) otherwise it will give INT_LITERAL(2) INT_LITERAL(-3)*)
+let float_literal = digit+ '.' digit* | digit* '.' digit+ (*Same only handling positive floats*)
+let exp_literal = (float_literal | int_literal) ['e''E'] ['-''+']? digit+ (*Handling numbers integer|float e|E integer*)
 let whitespace = [' ' '\t' '\r' ]+
 let string_literal = '"' [^'"']* '"'
 let sl_comment = "//" [^'\n']*
@@ -39,15 +39,14 @@ let sl_comment = "//" [^'\n']*
 (* Rules Section *)
 rule token = parse
   (* Skip whitespace and comments *)
-  | whitespace | sl_comment    { token lexbuf }
+  | whitespace { token lexbuf }
+  | sl_comment { token lexbuf } (* Handle single-line comments separately *)
 
   | '\n'      { incr_lineno lexbuf; token lexbuf } (* Handle newlines and update position *)
 
   | "/*"          { comment 1 lexbuf }
   
-  (* I/O Commands *)
-  | "input()" { INPUT("") }
-  | "input(" ([^')']+ as filename) ")" { INPUT(filename) }
+  | "input(" [' ' '\t' '\r']* ([^')']* as filename) [' ' '\t' '\r']* ")" { INPUT(String.trim filename) } (*supp whitespace and also trimmed whitespace from filename*)
   | "print"  { PRINT }
   
   (* Type keywords *)
@@ -58,22 +57,22 @@ rule token = parse
   | "matrix" { MATRIX }
 
   | "abs"   { ABS }
+  | "sqrt"  { SQRT }  
 
-    (* Vector and Matrix operations *)
-  | "."     { DOT }    
+  (* Vector and Matrix operations *)
+  | "dot"     { DOT }    
   | "dim"   { DIM }
   | "mag"   { MAG }
   | "trans" { TRANS }
   | "angle" { ANGLE }
   | "det"   { DET }
+  | "trace" { TRACE }
   
   (* Control keywords - MOVED BEFORE IDENTIFIERS *)
   | "if"    { IF }     
-  | "then"  { THEN }
   | "else"  { ELSE }
   | "for"   { FOR }    
   | "while" { WHILE }  
-  | "do"    { DO }
   
   (*--Data Section--*)
   (* Literals/Constants *)
@@ -81,8 +80,7 @@ rule token = parse
   | exp_literal as e  { FLOAT_LITERAL(float_of_string e) }
   | float_literal as f { FLOAT_LITERAL(float_of_string f) }
   | int_literal as i   { INT_LITERAL(int_of_string i) }
-  | string_literal as s  { STRING_LITERAL(String.sub s 1 (String.length s - 2)) }
-  | id as name      { ID(name) }  (* Moved identifiers AFTER keywords *)
+  | id as name      { ID(name) }
 
   (* Logical Operators *)
   | "&&"    { AND }    
@@ -91,6 +89,7 @@ rule token = parse
   | "^"     { XOR }
 
   (* Arithmetic Operators some are overloade for matrix/vector addition or multiplication*)
+  | "**"    { POWER }
   | "+"     { PLUS }
   | "-"     { MINUS }
   | "*"     { MUL }
@@ -104,8 +103,6 @@ rule token = parse
   | ">="    { GEQ }
   | "<"     { LT }     
   | ">"     { GT }
-  
-
 
   (* Control keywords *)
   | ":="    { ASSIGN }
@@ -127,5 +124,6 @@ rule token = parse
 and comment level = parse
   | "/*"     { comment (level + 1) lexbuf }
   | "*/"     { if level = 1 then token lexbuf else comment (level - 1) lexbuf }
+  | '\n'     { incr_lineno lexbuf; comment level lexbuf }  (* Make sure to update line numbers in comments *)
   | _        { comment level lexbuf }
   | eof      { raise (SyntaxError "Unterminated comment") }

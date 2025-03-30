@@ -1,0 +1,49 @@
+// Matrix operations test cases
+
+// Matrix creation
+matrix m1 := [[1, 2, 3], [4, 5, 6], [7, 8, 9]];
+print(m1);
+
+// Matrix element access
+print(m1[0][0]);  // 1
+print(m1[1][2]);  // 6
+
+// Matrix trace
+float tr := trace(m1);  // 1 + 5 + 9 = 15
+print(tr);
+
+// Matrix transpose
+matrix m1_t := trans(m1);
+print(m1_t);  // [[1, 4, 7], [2, 5, 8], [3, 6, 9]]
+print(m1_t[0][1]);  // Should be 4
+
+// Matrix determinant
+matrix m2 := [[1, 2], [3, 4]];
+float det_m2 := det(m2);  // 1*4 - 2*3 = -2
+print(det_m2);
+
+// Matrix addition
+matrix m3 := [[2, 0], [1, 3]];
+matrix m_sum := m2 + m3;  // [[3, 2], [4, 7]]
+print(m_sum);
+
+// Matrix subtraction
+matrix m_diff := m2 - m3;  // [[-1, 2], [2, 1]]
+print(m_diff);
+
+// Matrix multiplication
+matrix m_prod := m2 * m3;  // [[4, 6], [10, 12]]
+print(m_prod);
+
+// Matrix scalar operations
+matrix m_scaled := m2 * 2;  // [[2, 4], [6, 8]]
+print(m_scaled);
+
+// Matrix dimension
+int rows := dim(m1);  // 3
+print(rows);
+
+// Complex matrix expressions
+matrix m4 := [[1, 0], [0, 1]];
+matrix complex_m := m2 + m3 * 2 - m4;  // [[1, 2], [3, 4]] + [[4, 0], [2, 6]] - [[1, 0], [0, 1]] = [[4, 2], [5, 9]]
+print(complex_m);

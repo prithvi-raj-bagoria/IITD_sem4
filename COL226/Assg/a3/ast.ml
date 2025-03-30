@@ -13,13 +13,13 @@ type expr =
   | BoolLit of bool
   | IntLit of int
   | FloatLit of float
-  | StringLit of string
   | Var of string
   | PLUS of expr * expr
   | MINUS of expr * expr
-  | TIMES of expr * expr
+  | MUL of expr * expr
   | DIV of expr * expr
   | MOD of expr * expr
+  | POWER of expr * expr
   | NEG of expr
   | AND of expr * expr
   | OR of expr * expr
@@ -34,14 +34,16 @@ type expr =
   | DOT of expr * expr
   | MAG of expr
   | ABS of expr
+  | SQRT of expr  
   | DIM of expr
   | ANGLE of expr * expr
   | TRANS of expr
   | DET of expr
+  | TRACE of expr
   | VectorLit of expr * expr list
   | MatrixLit of expr * expr  * expr list list
   | Index of expr * expr * expr option  (* Modified: third argument is now an option *)
-  | Input of string option
+  | Input of string 
   | Print of expr
   | Assign of string * expr
 
@@ -53,7 +55,6 @@ type stmt =
   | IfStmt of expr * block * block option
   | ForStmt of stmt * expr * stmt * block
   | WhileStmt of expr * block
-  | DoWhileStmt of block * expr
   | Block of stmt list
 
 and block = stmt list 

@@ -1,0 +1,101 @@
+// Test case combining all language features
+
+// Type declarations and constants
+bool flag := true;
+int count := 10;
+float pi := 3.14159;
+
+// Simple expressions
+int sum := 5 + 10;
+float product := 2.5 * 4.0;
+bool logical := true && false || true;
+
+// Vector operations
+vector v1 := [1, 2, 3];
+vector v2 := [4, 5, 6];
+vector v_sum := v1 + v2;
+float dot_product := v1 . v2;
+float magnitude := mag(v1);
+
+// Matrix operations
+matrix m1 := [[1, 2], [3, 4]];
+matrix m2 := [[5, 6], [7, 8]];
+matrix m_sum := m1 + m2;
+matrix m_product := m1 * m2;
+matrix transposed := trans(m1);
+float determinant := det(m1);
+float trace_val := trace(m1);
+
+// Control flow - if statements
+int x := 10;
+int max_val;
+if (x > 5) {
+    max_val := x;
+} else {
+    max_val := 5;
+}
+
+// Control flow - nested if
+int category;
+if (x > 10) {
+    category := 3;
+} else if (x > 5) {
+    category := 2;
+} else {
+    category := 1;
+}
+
+// Control flow - while loops
+int factorial := 1;
+int n := 5;
+while (n > 0) {
+    factorial := factorial * n;
+    n := n - 1;
+}
+
+// Control flow - for loops
+int sum_squares := 0;
+for (int i := 1; i <= 5; i := i + 1) {
+    sum_squares := sum_squares + i * i;
+}
+
+// Nested loops
+int grid_sum := 0;
+for (int i := 0; i < 3; i := i + 1) {
+    for (int j := 0; j < 3; j := j + 1) {
+        grid_sum := grid_sum + i + j;
+    }
+}
+
+// Complex mathematical expressions
+float complex_result := sqrt(pi * pi + 2 * pi) / (pi - 1);
+
+// Array indexing
+vector numbers := [10, 20, 30, 40, 50];
+int third_num := numbers[2];  // 30
+matrix mat := [[1, 2, 3], [4, 5, 6], [7, 8, 9]];
+int center_val := mat[1][1];  // 5
+
+// Print all results
+print(flag);
+print(count);
+print(pi);
+print(sum);
+print(product);
+print(logical);
+print(v_sum);
+print(dot_product);
+print(magnitude);
+print(m_sum);
+print(m_product);
+print(transposed);
+print(determinant);
+print(trace_val);
+print(max_val);
+print(category);
+print(factorial);
+print(sum_squares);
+print(grid_sum);
+print(complex_result);
+print(third_num);
+print(center_val);

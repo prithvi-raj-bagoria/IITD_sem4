@@ -15,7 +15,6 @@ let token_to_string = function
   | BOOL_LITERAL(b) -> "BOOL_LITERAL(" ^ string_of_bool b ^ ")"
   | INT_LITERAL(i) -> "INT_LITERAL(" ^ string_of_int i ^ ")"
   | FLOAT_LITERAL(f) -> "FLOAT_LITERAL(" ^ string_of_float f ^ ")"
-  | STRING_LITERAL(s) -> "STRING_LITERAL(\"" ^ s ^ "\")"
   | ID(s) -> "ID(\"" ^ s ^ "\")"
   | INPUT(s) -> "INPUT(\"" ^ s ^ "\")"
   | PRINT -> "PRINT"
@@ -29,11 +28,13 @@ let token_to_string = function
   | NOT -> "NOT"
   | XOR -> "XOR"
   | ABS -> "ABS"
+  | SQRT -> "SQRT"  
   | PLUS -> "PLUS"
   | MINUS -> "MINUS"
   | MUL -> "MUL"
   | DIV -> "DIV"
   | MOD -> "MOD"
+  | POWER -> "POWER"
   | EQ -> "EQ"
   | NEQ -> "NEQ"
   | LT -> "LT"
@@ -46,13 +47,12 @@ let token_to_string = function
   | ANGLE -> "ANGLE"
   | TRANS -> "TRANS"
   | DET -> "DET"
+  | TRACE -> "TRACE"  (* Added TRACE token *)
   | ASSIGN -> "ASSIGN"
   | IF -> "IF"
-  | THEN -> "THEN"
   | ELSE -> "ELSE"
   | FOR -> "FOR"
   | WHILE -> "WHILE"
-  | DO -> "DO"
   | SEMICOLON -> "SEMICOLON"
   | COMMA -> "COMMA"
   | LPAREN -> "LPAREN"
@@ -78,13 +78,13 @@ let rec string_of_expr = function
   | BoolLit(b) -> "BoolLit(" ^ string_of_bool b ^ ")"
   | IntLit(i) -> "IntLit(" ^ string_of_int i ^ ")"
   | FloatLit(f) -> "FloatLit(" ^ string_of_float f ^ ")"
-  | StringLit(s) -> "StringLit(\"" ^ s ^ "\")"
   | Var(id) -> "Var(\"" ^ id ^ "\")"
   | PLUS(e1, e2) -> "PLUS(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
   | MINUS(e1, e2) -> "MINUS(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
-  | TIMES(e1, e2) -> "TIMES(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
+  | MUL(e1, e2) -> "MUL(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"  (* Changed TIMES to MUL *)
   | DIV(e1, e2) -> "DIV(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
   | MOD(e1, e2) -> "MOD(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
+  | POWER(e1, e2) -> "POWER(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
   | NEG(e) -> "NEG(" ^ string_of_expr e ^ ")"
   | AND(e1, e2) -> "AND(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
   | OR(e1, e2) -> "OR(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
@@ -99,10 +99,12 @@ let rec string_of_expr = function
   | DOT(e1, e2) -> "DOT(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
   | MAG(e) -> "MAG(" ^ string_of_expr e ^ ")"
   | ABS(e) -> "ABS(" ^ string_of_expr e ^ ")"
+  | SQRT(e) -> "SQRT(" ^ string_of_expr e ^ ")"  (* Added SQRT expression string conversion *)
   | DIM(e) -> "DIM(" ^ string_of_expr e ^ ")"
   | ANGLE(e1, e2) -> "ANGLE(" ^ string_of_expr e1 ^ ", " ^ string_of_expr e2 ^ ")"
   | TRANS(e) -> "TRANS(" ^ string_of_expr e ^ ")"
   | DET(e) -> "DET(" ^ string_of_expr e ^ ")"
+  | TRACE(e) -> "TRACE(" ^ string_of_expr e ^ ")"
   | VectorLit(dim, elements) -> 
       let dim_str = match dim with 
         | IntLit(d) -> string_of_int d
@@ -126,8 +128,7 @@ let rec string_of_expr = function
         | Some idx2 -> ", " ^ string_of_expr idx2
       in
       "Index(" ^ string_of_expr e ^ ", " ^ string_of_expr idx1 ^ idx2_str ^ ")"
-  | Input(None) -> "Input()"
-  | Input(Some s) -> "Input(\"" ^ s ^ "\")"  (* Changed: removed Some *)
+  | Input( s) -> "Input(\"" ^ s ^ "\")"  (* Changed: removed Some *)
   | Print(e) -> "Print(" ^ string_of_expr e ^ ")"
   | Assign(id, e) -> "Assign(\"" ^ id ^ "\", " ^ string_of_expr e ^ ")"
 
@@ -144,7 +145,6 @@ let rec string_of_stmt = function
       "IfStmt(" ^ string_of_expr cond ^ ", " ^ string_of_block then_block ^ 
       (if else_block_opt <> None then ", else: " ^ else_str else "") ^ ")"
   | WhileStmt(cond, block) -> "WhileStmt(" ^ string_of_expr cond ^ ", " ^ string_of_block block ^ ")"
-  | DoWhileStmt(block, cond) -> "DoWhileStmt(" ^ string_of_block block ^ ", " ^ string_of_expr cond ^ ")"
   | ForStmt(init, cond, update, block) ->
       "ForStmt(" ^ string_of_stmt init ^ ", " ^ string_of_expr cond ^ ", " ^ 
       string_of_stmt update ^ ", " ^ string_of_block block ^ ")"
@@ -166,7 +166,6 @@ let rec string_of_expr_tree expr indent =
   | BoolLit(b) -> node_indent ^ "BoolLit: " ^ string_of_bool b
   | IntLit(i) -> node_indent ^ "IntLit: " ^ string_of_int i
   | FloatLit(f) -> node_indent ^ "FloatLit: " ^ string_of_float f
-  | StringLit(s) -> node_indent ^ "StringLit: \"" ^ s ^ "\""
   | Var(id) -> node_indent ^ "Var: " ^ id
   | PLUS(e1, e2) -> 
       node_indent ^ "PLUS\n" ^ 
@@ -176,8 +175,8 @@ let rec string_of_expr_tree expr indent =
       node_indent ^ "MINUS\n" ^ 
       string_of_expr_tree e1 child_indent ^ "\n" ^
       string_of_expr_tree e2 last_child_indent
-  | TIMES(e1, e2) -> 
-      node_indent ^ "TIMES\n" ^ 
+  | MUL(e1, e2) ->  
+      node_indent ^ "MUL\n" ^ 
       string_of_expr_tree e1 child_indent ^ "\n" ^
       string_of_expr_tree e2 last_child_indent
   | DIV(e1, e2) -> 
@@ -186,6 +185,10 @@ let rec string_of_expr_tree expr indent =
       string_of_expr_tree e2 last_child_indent
   | MOD(e1, e2) -> 
       node_indent ^ "MOD\n" ^ 
+      string_of_expr_tree e1 child_indent ^ "\n" ^
+      string_of_expr_tree e2 last_child_indent
+  | POWER(e1, e2) -> 
+      node_indent ^ "POWER\n" ^ 
       string_of_expr_tree e1 child_indent ^ "\n" ^
       string_of_expr_tree e2 last_child_indent
   | NEG(e) -> 
@@ -240,6 +243,9 @@ let rec string_of_expr_tree expr indent =
   | ABS(e) -> 
       node_indent ^ "ABS\n" ^ 
       string_of_expr_tree e last_child_indent
+  | SQRT(e) ->  (* Added SQRT expression tree printing *)
+      node_indent ^ "SQRT\n" ^ 
+      string_of_expr_tree e last_child_indent
   | DIM(e) -> 
       node_indent ^ "DIM\n" ^ 
       string_of_expr_tree e last_child_indent
@@ -252,6 +258,9 @@ let rec string_of_expr_tree expr indent =
       string_of_expr_tree e last_child_indent
   | DET(e) -> 
       node_indent ^ "DET\n" ^ 
+      string_of_expr_tree e last_child_indent
+  | TRACE(e) -> 
+      node_indent ^ "TRACE\n" ^ 
       string_of_expr_tree e last_child_indent
   | VectorLit(dim, elements) -> 
       let dim_str = match dim with 
@@ -284,8 +293,7 @@ let rec string_of_expr_tree expr indent =
             last_indent ^ "col: " ^ string_of_expr idx2
       in
       idx_str
-  | Input(None) -> node_indent ^ "Input"
-  | Input(Some s) -> node_indent ^ "Input: \"" ^ s ^ "\""
+  | Input(s) -> node_indent ^ "Input: \"" ^ s ^ "\""
   | Print(e) -> 
       node_indent ^ "Print\n" ^ 
       string_of_expr_tree e last_child_indent
@@ -352,12 +360,6 @@ let rec string_of_stmt_tree stmt indent =
       string_of_expr_tree cond (child_indent ^ "│   ") ^ "\n" ^
       last_indent ^ "body:\n" ^ 
       string_of_block_tree block last_child_indent
-  | DoWhileStmt(block, cond) -> 
-      node_indent ^ "DoWhileStmt\n" ^ 
-      node_indent ^ "│   body:\n" ^ 
-      string_of_block_tree block (child_indent ^ "│   ") ^ "\n" ^
-      last_indent ^ "condition:\n" ^ 
-      string_of_expr_tree cond (last_child_indent ^ "│   ")
   | ForStmt(init, cond, update, block) -> 
       node_indent ^ "ForStmt\n" ^ 
       node_indent ^ "│   init:\n" ^ 
@@ -410,9 +412,6 @@ let typecheck_with_locations ast =
          | None -> new_line
          | Some else_blk -> process_block else_blk new_line)
     | WhileStmt(_, block) ->
-        line_map := (stmt, line) :: !line_map;
-        process_block block (line + 1)
-    | DoWhileStmt(block, _) ->
         line_map := (stmt, line) :: !line_map;
         process_block block (line + 1)
     | ForStmt(_, _, _, block) ->
@@ -483,23 +482,36 @@ let () =
       
     Printf.printf "Processing file: %s\n" filename;
     
-    (* Create lexing buffer from input *)
+    (* Create lexing buffer from input with correct position *)
     let lexbuf = Lexing.from_string !input in
-    lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with
-                           pos_fname = filename;
-                           pos_lnum = 1;
-                         };
-    
-    (* Reset lexbuf for parsing *)
-    let lexbuf = Lexing.from_string !input in
-    lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with
-                           pos_fname = filename;
-                           pos_lnum = 1;
-                         };
+    let () = lexbuf.lex_curr_p <- { 
+      pos_fname = filename;
+      pos_lnum = 1;
+      pos_bol = 0;
+      pos_cnum = 0 
+    } in
     
     (* Parse the input and print AST *)
     try
-      print_endline "Parsing input...";
+      print_endline "Lexing input...";
+(* Collect all tokens first *)
+      (* Print all tokens *)
+      (* let tokens = collect_tokens lexbuf in
+      print_endline "Tokens:";
+      List.iter (fun token -> 
+      print_endline ("  " ^ token_to_string token)
+      ) tokens; *)
+      
+      (* Reset lexbuf for parsing with correct position *)
+      let lexbuf = Lexing.from_string !input in
+      let () = lexbuf.lex_curr_p <- { 
+        pos_fname = filename;
+        pos_lnum = 1;
+        pos_bol = 0;
+        pos_cnum = 0 
+      } in
+      
+      print_endline "\nParsing input...";
       let ast = Parser.program Lexer.token lexbuf in
       
       (* Type checking *)
@@ -518,9 +530,6 @@ let () =
         exit 1
     | Lexer.SyntaxError msg ->
         prerr_endline ("\027[31mLexical error at " ^ print_position lexbuf ^ ": " ^ msg ^ "\027[0m");
-        exit 1
-    | End_of_file ->
-        prerr_endline ("\027[31mUnexpected end of file during parsing at " ^ print_position lexbuf ^ "\027[0m");
         exit 1
   with
   | Sys_error msg -> prerr_endline ("System error: " ^ msg)

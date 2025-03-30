@@ -12,7 +12,7 @@ type location = {
 }
 
 (* Global reference to track current location *)
-let current_loc = ref { line = 0; column = 0 }
+let current_loc = ref { line = 1; column = 0 }  (* Start at line 1 instead of 0 *)
 
 (* Lookup an identifier in the environment *)
 let rec lookup env x =
@@ -45,7 +45,7 @@ let result_type t1 t2 =
 (* Helper function to set the current location *)
 let with_loc line col f =
   let old_loc = !current_loc in
-  current_loc := { line = line; column = col };
+  current_loc := { line = if line = 0 then 1 else line; column = col };  (* Ensure line is never 0 *)
   try
     let result = f () in
     current_loc := old_loc;
@@ -67,7 +67,6 @@ let rec type_expr env = function
   | BoolLit _ -> BoolType
   | IntLit _ -> IntType
   | FloatLit _ -> FloatType
-  | StringLit _ -> raise (TypeError ("String type not supported", !current_loc.line, !current_loc.column))
   | Var x -> lookup env x
   | PLUS(e1,e2) ->
       let t1 = type_expr env e1 and t2 = type_expr env e2 in
@@ -97,7 +96,7 @@ let rec type_expr env = function
       else raise (TypeError ("Subtraction type mismatch: cannot operate on " ^ 
                            string_of_type t1 ^ " and " ^ string_of_type t2, 
                            !current_loc.line, !current_loc.column))
-  | TIMES(e1,e2) ->
+  | MUL(e1,e2) ->
       let t1 = type_expr env e1 and t2 = type_expr env e2 in
       if compatible t1 t2 then 
         match (t1, t2) with
@@ -120,6 +119,13 @@ let rec type_expr env = function
       if (t1 = IntType || t1 = FloatType) && (t2 = IntType || t2 = FloatType) then 
         if t1 = FloatType || t2 = FloatType then FloatType else IntType
       else raise (TypeError ("Division/Modulo operation type mismatch: cannot operate on " ^ 
+                           string_of_type t1 ^ " and " ^ string_of_type t2, 
+                           !current_loc.line, !current_loc.column))
+  | POWER(e1,e2) ->
+      let t1 = type_expr env e1 and t2 = type_expr env e2 in
+      if (t1 = IntType || t1 = FloatType) && (t2 = IntType || t2 = FloatType) then 
+        if t1 = FloatType || t2 = FloatType then FloatType else IntType
+      else raise (TypeError ("Exponentiation operation type mismatch: cannot operate on " ^ 
                            string_of_type t1 ^ " and " ^ string_of_type t2, 
                            !current_loc.line, !current_loc.column))
   | NEG e ->
@@ -163,6 +169,11 @@ let rec type_expr env = function
       if t = IntType || t = FloatType then t
       else raise (TypeError ("ABS requires numeric type, got " ^ string_of_type t, 
                              !current_loc.line, !current_loc.column))
+  | SQRT e ->  (* Added type checking for sqrt operation *)
+      let t = type_expr env e in
+      if t = IntType || t = FloatType then FloatType  (* sqrt always returns float *)
+      else raise (TypeError ("SQRT requires numeric type, got " ^ string_of_type t, 
+                             !current_loc.line, !current_loc.column))
   | MAG e ->
       let t = type_expr env e in
       (match t with
@@ -190,10 +201,13 @@ let rec type_expr env = function
                                 !current_loc.line, !current_loc.column)))
   | DET e ->
       let t = type_expr env e in
-      (match t with
-       | MatrixType -> FloatType
-       | _ -> raise (TypeError ("DET requires a square matrix, got " ^ string_of_type t, 
-                                !current_loc.line, !current_loc.column)))
+      if t = MatrixType then FloatType
+      else raise (TypeError ("DET requires a square matrix, got " ^ string_of_type t, 
+                                !current_loc.line, !current_loc.column))
+  | TRACE(e) ->
+      let t = type_expr env e in
+      if t = MatrixType then FloatType
+      else raise (TypeError ("Matrix expected in trace operation, got " ^ string_of_type t, !current_loc.line, !current_loc.column))
   | VectorLit(_, elements) ->
       let elems = List.map (type_expr env) elements in
       if elems = [] then VectorType
@@ -275,12 +289,6 @@ let rec type_stmt env = function
         raise (TypeError ("While condition must be boolean", 
                           !current_loc.line, !current_loc.column))
       else let _ = type_block env block in env
-  | DoWhileStmt(block, cond) ->
-      let _ = type_block env block in
-      if type_expr env cond <> BoolType then 
-        raise (TypeError ("Do-while condition must be boolean", 
-                          !current_loc.line, !current_loc.column))
-      else env
   | ForStmt(init, cond, update, block) ->
       let env' = type_stmt env init in
       if type_expr env' cond <> BoolType then 

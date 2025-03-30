@@ -1,0 +1,45 @@
+// Vector operations test cases
+
+// Vector creation and access
+vector v1 := [1, 2, 3, 4, 5];
+print(v1);
+print(v1[2]);  // Should print 3 (0-indexed)
+
+// Vector operations
+vector v2 := [5, 4, 3, 2, 1];
+vector v_sum := v1 + v2;  // [6, 6, 6, 6, 6]
+print(v_sum);
+
+vector v_diff := v1 - v2;  // [-4, -2, 0, 2, 4]
+print(v_diff);
+
+// Scalar operations
+vector v_scaled := v1 * 2;  // [2, 4, 6, 8, 10]
+print(v_scaled);
+
+// Vector dot product
+float dot_prod := v1 dot v2;  // 1*5 + 2*4 + 3*3 + 4*2 + 5*1 = 35
+print(dot_prod);
+
+// Vector magnitude
+float mag_v1 := mag(v1);  // sqrt(1² + 2² + 3² + 4² + 5²) = sqrt(55)
+print(mag_v1);
+
+// Vector angle
+float angle_v1_v2 := angle(v1, v2);
+print(angle_v1_v2);
+
+// Vector dimension
+int dim_v1 := dim(v1);  // 5
+print(dim_v1);
+
+// Mixed vector operations
+vector v3 := [2, 4, 6];
+vector v4 := [1, 2, 3];
+float expr1 := mag(v3 - v4);  // magnitude of [1, 2, 3], should be sqrt(14)
+print(expr1);
+
+// Complex vector expressions
+vector zeros := [0, 0, 0];
+vector complex_v := v3 + v4 * 2 - v3;  // [2, 4, 6] + [2, 4, 6] - [1, 2, 3] = [3, 6, 9]
+print(complex_v);

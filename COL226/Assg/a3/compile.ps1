@@ -1,64 +1,140 @@
-# PowerShell script to compile the OCaml parser project
+# compile.ps1 - Compilation script for Matrix/Vector DSL
+param (
+    [switch]$clean = $false,
+    [switch]$run = $false,
+    [switch]$verbose = $false
+)
 
-# Set error action preference
-$ErrorActionPreference = "Stop"
+# Cleaning function
+function Clean-Project {
+    echo "Cleaning project files..."
+    # Remove generated OCaml files
+    if (Test-Path lexer.ml) { Remove-Item lexer.ml }
+    if (Test-Path parser.ml) { Remove-Item parser.ml }
+    if (Test-Path parser.mli) { Remove-Item parser.mli }
+    if (Test-Path parser.output) { Remove-Item parser.output }
+    
+    # Remove object files
+    Get-ChildItem -Filter "*.cmo" | Remove-Item
+    Get-ChildItem -Filter "*.cmi" | Remove-Item
+    
+    # Remove executable
+    if (Test-Path dsl.exe) { Remove-Item dsl.exe }
+    
+    echo "Clean complete."
+    exit 0
+}
 
-# Output information
-Write-Host "Compiling OCaml parser project..."
+# Check if clean option was specified
+if ($clean) {
+    Clean-Project
+}
 
-try {
-    # Generate parser from mly file
-    Write-Host "Generating parser from parser.mly..."
-    ocamlyacc parser.mly
-    if (-not $?) { throw "ocamlyacc failed" }
-
-    # Generate lexer from mll file
-    Write-Host "Generating lexer from lexer.mll..."
-    ocamllex lexer.mll
-    if (-not $?) { throw "ocamllex failed" }
-
-    # Compile modules in order of dependency
-    Write-Host "Compiling AST..."
-    ocamlc -c ast.ml
-    if (-not $?) { throw "Failed to compile ast.ml" }
-
-    Write-Host "Compiling parser..."
-    ocamlc -c parser.mli
-    ocamlc -c parser.ml
-    if (-not $?) { throw "Failed to compile parser.ml" }
-
-    Write-Host "Compiling lexer..."
-    ocamlc -c lexer.ml
-    if (-not $?) { throw "Failed to compile lexer.ml" }
-
-    Write-Host "Compiling typechecker..."
-    ocamlc -c typechecker.ml
-    if (-not $?) { throw "Failed to compile typechecker.ml" }
-
-    Write-Host "Compiling main driver..."
-    ocamlc -c main.ml
-    if (-not $?) { throw "Failed to compile main.ml" }
-
-    # Link to create the main executable
-    Write-Host "Linking to create main.exe..."
-    ocamlc -o main.exe ast.cmo parser.cmo lexer.cmo typechecker.cmo main.cmo
-    if (-not $?) { throw "Failed to link main.exe" }
-
-    Write-Host "Compilation successful! Run your project with: .\main.exe <input_file>"
-} 
-catch {
-    Write-Host "Error: $_" -ForegroundColor Red
+# Check for OCaml tools
+echo "Checking for OCaml tools..."
+if (-not (Get-Command ocamllex -ErrorAction SilentlyContinue)) {
+    Write-Error "ocamllex not found. Please ensure OCaml is installed properly."
+    exit 1
+}
+if (-not (Get-Command ocamlyacc -ErrorAction SilentlyContinue)) {
+    Write-Error "ocamlyacc not found. Please ensure OCaml is installed properly."
     exit 1
 }
 
-# Function to clean up compiled files
-function Clean-Build {
-    Write-Host "Cleaning build files..."
-    Remove-Item -ErrorAction SilentlyContinue *.cmo, *.cmi, parser.ml, parser.mli, lexer.ml, main.exe
-    Write-Host "Clean complete."
+# Step 1: Generate lexer and parser
+echo "Generating lexer..."
+ocamllex lexer.mll
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to process lexer.mll"
+    exit 1
 }
 
-# Check for clean parameter
-if ($args.Contains("clean")) {
-    Clean-Build
+echo "Generating parser..."
+if ($verbose) {
+    # Generate verbose output for debugging conflicts
+    ocamlyacc -v parser.mly
+} else {
+    ocamlyacc parser.mly
 }
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to process parser.mly"
+    exit 1
+}
+
+# Step 2: Compile modules in correct dependency order
+echo "Compiling modules..."
+
+# First, compile the AST definition
+echo "Compiling ast.ml..."
+ocamlc -c ast.ml
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to compile ast.ml"
+    exit 1
+}
+
+# Compile the tokens interface
+echo "Compiling tokens.mli..."
+ocamlc -c tokens.mli
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to compile tokens.mli"
+    exit 1
+}
+
+# Important: compile parser.mli BEFORE parser.ml
+echo "Compiling parser.mli..."
+ocamlc -c parser.mli
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to compile parser.mli"
+    exit 1
+}
+
+# Now compile implementation files
+echo "Compiling parser.ml..."
+ocamlc -c parser.ml
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to compile parser.ml"
+    exit 1
+}
+
+echo "Compiling lexer.ml..."
+ocamlc -c lexer.ml
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to compile lexer.ml"
+    exit 1
+}
+
+echo "Compiling typechecker.ml..."
+ocamlc -c typechecker.ml
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to compile typechecker.ml"
+    exit 1
+}
+
+echo "Compiling main.ml..."
+ocamlc -c main.ml
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to compile main.ml"
+    exit 1
+}
+
+# Step 3: Link everything together (excluding tokens.cmo since it's only an interface)
+echo "Linking final executable..."
+ocamlc -o dsl.exe ast.cmo parser.cmo lexer.cmo typechecker.cmo main.cmo
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to link modules into executable"
+    exit 1
+}
+
+# Step 4: Run with input.txt if requested or -run flag is set
+if ($run -or (-not $clean)) {
+    echo "Running with input from input.txt..."
+    if (-not (Test-Path "input.txt")) {
+        Write-Error "input.txt not found in the current directory."
+        exit 1
+    }
+    
+    echo "AST Output:"
+    Get-Content "input.txt" | .\dsl.exe
+}
+
+echo "Done."
