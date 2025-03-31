@@ -547,6 +547,7 @@ let () =
 
     with
     | Parsing.Parse_error ->
+        let pos = lexbuf.lex_curr_p in
         prerr_endline ("\027[31mSyntax error at " ^ print_position lexbuf ^ "\027[0m");
         exit 1
     | Lexer.SyntaxError msg ->

@@ -14,14 +14,6 @@
       pos_lnum = pos.pos_lnum + 1;
       pos_bol = pos.pos_cnum
     }
-
-  (* Error reporting *)
-  let report_error lexbuf msg =
-    let pos = lexbuf.lex_curr_p in
-    let line = pos.pos_lnum in
-    let col = pos.pos_cnum - pos.pos_bol in
-    Printf.fprintf stderr "Lexical error at line %d, character %d: %s\n" line col msg;
-    failwith "Lexical error"
 }
 
 (* Definitions Section *)
@@ -40,7 +32,7 @@ let sl_comment = "//" [^'\n']*
 rule token = parse
   (* Skip whitespace and comments *)
   | whitespace { token lexbuf }
-  | sl_comment { token lexbuf } (* Handle single-line comments separately *)
+  | sl_comment "\n" { incr_lineno lexbuf; token lexbuf } (* Handle single-line comments separately *)
 
   | '\n'      { incr_lineno lexbuf; token lexbuf } (* Handle newlines and update position *)
 
@@ -118,7 +110,7 @@ rule token = parse
   | ","     { COMMA }
   
   | eof     { EOF }
-  | _ as c  { report_error lexbuf ("Unexpected character: " ^ String.make 1 c) }
+  | _ as c { raise (SyntaxError ("Unexpected Character: " ^ (String.make 1 c))) }
 
 (* Handling nested comments *)
 and comment level = parse
