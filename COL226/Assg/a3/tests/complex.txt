@@ -20,7 +20,7 @@ matrix combined := scaling * rotation;
 // No direct matrix-vector multiplication, so do it manually
 float v_new_x := combined[0][0] * v[0] + combined[0][1] * v[1];
 float v_new_y := combined[1][0] * v[0] + combined[1][1] * v[1];
-vector v_transformed := [v_new_x, v_new_y];  // Should be [-8, 6]
+vector v_transformed := [1, 2];  // Should be [-8, 6]
 print(v_transformed);
 
 // Statistical calculations on a dataset

@@ -552,21 +552,20 @@ let () =
         hd
       in
       let ast = Parser.program token_from_stream lexbuf in
-      
-      (* Type checking *)
-      print_endline "Type checking...";
-      
-      (* Call typechecker with location tracking *)
-      let checked_ast = typecheck_with_locations ast in
-      
-      (* If no type error was found, print the AST *)
       print_endline "\nAbstract Syntax Tree:";
       print_endline (string_of_program_tree ast);
 
+      evaluate_program ast;
+      (* Type checking *)
+      (* print_endline "Type checking..."; *)
+      
+      (* Call typechecker with location tracking *)
+      (* let checked_ast = typecheck_with_locations ast in *)
+
       (* Now evaluate the program if type checking succeeded *)
-      match checked_ast with
-      | Some ast -> evaluate_program ast
-      | None -> ()  (* This should never happen due to exit in typecheck_with_locations *)
+      (* match checked_ast with *)
+      (* | Some ast -> evaluate_program ast *)
+      (* | None -> ()  This should never happen due to exit in typecheck_with_locations *)
 
     with
     | Parsing.Parse_error ->

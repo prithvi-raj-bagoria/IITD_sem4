@@ -20,18 +20,6 @@ let rec lookup gamma x =
   | [] -> raise (TypeError ("Undefined variable: " ^ x, !current_loc.line, !current_loc.column))
   | (y,t)::rest -> if x = y then t else lookup rest x
 
-(* Check if two types are compatible *)
-let compatible t1 t2 =
-  match (t1,t2) with
-  | (IntType,IntType) | (FloatType,FloatType) | (BoolType,BoolType) -> true
-  | (VectorType, VectorType) -> true
-  | (MatrixType, MatrixType) -> true
-  | (VectorType, IntType) | (IntType, VectorType) -> true  (* Allow vector * int operations *)
-  | (VectorType, FloatType) | (FloatType, VectorType) -> true  (* Allow vector * float operations *)
-  | (MatrixType, IntType) | (IntType, MatrixType) -> true  (* Allow matrix * int operations *)
-  | (MatrixType, FloatType) | (FloatType, MatrixType) -> true  (* Allow matrix * float operations *)
-  | _ -> false
-
 (* Resulting type for arithmetic operations *)
 let result_type t1 t2 =
   match (t1,t2) with
@@ -68,94 +56,90 @@ let rec type_expr gamma = function
   | FloatLit _ -> FloatType
   | Var x -> lookup gamma x
   | PLUS(e1,e2) ->
-      let t1 = type_expr gamma e1 and t2 = type_expr gamma e2 in
-      if compatible t1 t2 then 
-        match (t1, t2) with
+     let t1 = type_expr gamma e1 in let t2 = type_expr gamma e2 in
+        (match (t1, t2) with
         | (VectorType, VectorType) -> VectorType
         | (MatrixType, MatrixType) -> MatrixType
         | (IntType, IntType) -> IntType
-        | (IntType, FloatType) | (FloatType, IntType) | (FloatType, FloatType) -> FloatType
+        | (FloatType, FloatType) -> FloatType
         | _ -> raise (TypeError ("Addition not supported between " ^ 
                                string_of_type t1 ^ " and " ^ string_of_type t2, 
-                               !current_loc.line, !current_loc.column))
-      else raise (TypeError ("Addition type mismatch: cannot operate on " ^ 
-                           string_of_type t1 ^ " and " ^ string_of_type t2, 
-                           !current_loc.line, !current_loc.column))
+                               !current_loc.line, !current_loc.column)))
   | MINUS(e1,e2) ->
       let t1 = type_expr gamma e1 and t2 = type_expr gamma e2 in
-      if compatible t1 t2 then 
-        match (t1, t2) with
+        (match (t1, t2) with
         | (VectorType, VectorType) -> VectorType
         | (MatrixType, MatrixType) -> MatrixType
         | (IntType, IntType) -> IntType
-        | (IntType, FloatType) | (FloatType, IntType) | (FloatType, FloatType) -> FloatType
+        | (FloatType, FloatType) -> FloatType
         | _ -> raise (TypeError ("Subtraction not supported between " ^ 
                                string_of_type t1 ^ " and " ^ string_of_type t2, 
-                               !current_loc.line, !current_loc.column))
-      else raise (TypeError ("Subtraction type mismatch: cannot operate on " ^ 
-                           string_of_type t1 ^ " and " ^ string_of_type t2, 
-                           !current_loc.line, !current_loc.column))
+                               !current_loc.line, !current_loc.column)))
   | MUL(e1,e2) ->
       let t1 = type_expr gamma e1 and t2 = type_expr gamma e2 in
-      if compatible t1 t2 then 
-        match (t1, t2) with
+        (match (t1, t2) with
         | (VectorType, IntType) | (IntType, VectorType) -> VectorType
         | (VectorType, FloatType) | (FloatType, VectorType) -> VectorType
         | (MatrixType, MatrixType) -> MatrixType
         | (MatrixType, IntType) | (IntType, MatrixType) -> MatrixType
         | (MatrixType, FloatType) | (FloatType, MatrixType) -> MatrixType
         | (IntType, IntType) -> IntType
-        | (IntType, FloatType) | (FloatType, IntType) | (FloatType, FloatType) -> FloatType
+        | (FloatType, FloatType) -> FloatType
         | _ -> raise (TypeError ("Multiplication not supported between " ^ 
                                string_of_type t1 ^ " and " ^ string_of_type t2, 
-                               !current_loc.line, !current_loc.column))
-      else raise (TypeError ("Multiplication type mismatch: cannot operate on " ^ 
-                           string_of_type t1 ^ " and " ^ string_of_type t2, 
-                           !current_loc.line, !current_loc.column))
-  | DIV(e1,e2)
-  | MOD(e1,e2) ->
+                               !current_loc.line, !current_loc.column)))
+  | DIV(e1,e2) ->
       let t1 = type_expr gamma e1 and t2 = type_expr gamma e2 in
-      if (t1 = IntType || t1 = FloatType) && (t2 = IntType || t2 = FloatType) then 
-        if t1 = FloatType || t2 = FloatType then FloatType else IntType
-      else raise (TypeError ("Division/Modulo operation type mismatch: cannot operate on " ^ 
-                           string_of_type t1 ^ " and " ^ string_of_type t2, 
-                           !current_loc.line, !current_loc.column))
+       (match (t1, t2) with
+        | (IntType, IntType) -> FloatType
+        | (FloatType, IntType) | (IntType, FloatType) | (FloatType, FloatType) -> FloatType
+        | (VectorType, IntType) | (IntType, VectorType) -> VectorType
+        | (MatrixType, IntType) | (IntType, MatrixType) -> MatrixType
+        | (VectorType, FloatType) | (FloatType, VectorType) -> VectorType
+        | (MatrixType, FloatType) | (FloatType, MatrixType) -> MatrixType
+        | _ -> raise (TypeError ("Division not supported between " ^ 
+                               string_of_type t1 ^ " and " ^ string_of_type t2, 
+                               !current_loc.line, !current_loc.column)))
+  | MOD(e1,e2) ->
+      (let t1 = type_expr gamma e1 and t2 = type_expr gamma e2 in
+       match (t1, t2) with
+        | (IntType, IntType) -> IntType
+        | _ -> raise (TypeError ("Modulo not supported between " ^ 
+                               string_of_type t1 ^ " and " ^ string_of_type t2, 
+                               !current_loc.line, !current_loc.column)))
   | POWER(e1,e2) ->
       let t1 = type_expr gamma e1 and t2 = type_expr gamma e2 in
-      if (t1 = IntType || t1 = FloatType) && (t2 = IntType || t2 = FloatType) then 
-        if t1 = FloatType || t2 = FloatType then FloatType else IntType
-      else raise (TypeError ("Exponentiation operation type mismatch: cannot operate on " ^ 
-                           string_of_type t1 ^ " and " ^ string_of_type t2, 
-                           !current_loc.line, !current_loc.column))
+        (match (t1, t2) with
+        | (IntType, IntType) -> IntType
+        | (FloatType, IntType) | (IntType, FloatType) | (FloatType, FloatType) -> FloatType
+        | _ -> raise (TypeError ("Power operation not supported between " ^ 
+                               string_of_type t1 ^ " and " ^ string_of_type t2, 
+                               !current_loc.line, !current_loc.column)))
   | NEG e ->
       let t = type_expr gamma e in
-      if t = IntType || t = FloatType then t
-      else raise (TypeError ("Unary negation requires numeric type, got " ^ string_of_type t, 
-                             !current_loc.line, !current_loc.column))
-  | AND(e1,e2)
-  | OR(e1,e2)
-  | XOR(e1,e2) ->
-      let t1 = type_expr gamma e1 and t2 = type_expr gamma e2 in
-      if t1 = BoolType && t2 = BoolType then BoolType
-      else raise (TypeError ("Logical operation requires booleans, got " ^ 
-                             string_of_type t1 ^ " and " ^ string_of_type t2, 
-                             !current_loc.line, !current_loc.column))
+        (match t with
+        | IntType | FloatType | VectorType | MatrixType -> t
+        | _ -> raise (TypeError ("Unary negation not supported for " ^ 
+                               string_of_type t, !current_loc.line, !current_loc.column)))
+  | AND(e1,e2) | OR(e1,e2) | XOR(e1,e2)-> 
+      (let t1 = type_expr gamma e1 and t2 = type_expr gamma e2 in
+        match (t1, t2) with
+        | (BoolType, BoolType) -> BoolType
+        | _ -> raise (TypeError ("Logical operation requires booleans, got " ^ 
+                               string_of_type t1 ^ " and " ^ string_of_type t2, 
+                               !current_loc.line, !current_loc.column)))
   | NOT e ->
       let t = type_expr gamma e in
       if t = BoolType then BoolType
       else raise (TypeError ("NOT requires a boolean, got " ^ string_of_type t, 
                              !current_loc.line, !current_loc.column))
-  | EQ(e1,e2)
-  | NEQ(e1,e2)
-  | LT(e1,e2)
-  | GT(e1,e2)
-  | LEQ(e1,e2)
-  | GEQ(e1,e2) ->
+  | EQ(e1,e2) | NEQ(e1,e2) | LT(e1,e2) | GT(e1,e2) | LEQ(e1,e2) | GEQ(e1,e2)-> 
       let t1 = type_expr gamma e1 and t2 = type_expr gamma e2 in
-      if compatible t1 t2 then BoolType
-      else raise (TypeError ("Comparison requires compatible types, got " ^ 
-                             string_of_type t1 ^ " and " ^ string_of_type t2, 
-                             !current_loc.line, !current_loc.column))
+        (match (t1, t2) with
+        | (IntType, IntType) -> BoolType
+        | _ -> raise (TypeError ("Equality check requires compatible types, got " ^ 
+                               string_of_type t1 ^ " and " ^ string_of_type t2, 
+                               !current_loc.line, !current_loc.column)))
   | DOT(e1,e2) ->
       let t1 = type_expr gamma e1 and t2 = type_expr gamma e2 in
       (match (t1,t2) with
@@ -210,23 +194,25 @@ let rec type_expr gamma = function
   | VectorLit(_, elements) ->
       let elems = List.map (type_expr gamma) elements in
       if elems = [] then VectorType
-      else if List.for_all (fun t -> t = IntType || t = FloatType) elems then VectorType
-      else raise (TypeError ("Vector elements must be numeric (int or float)", 
+      else if List.for_all ( fun t -> t = IntType) elems then VectorType
+      else if List.for_all ( fun t -> t = FloatType) elems then VectorType
+      else raise (TypeError ("Vector elements must be numeric (all int or all float)", 
                            !current_loc.line, !current_loc.column))
   | MatrixLit(_, _, elements) ->
       if elements = [] then MatrixType
       else 
         let c = List.length (List.hd elements) in
         if List.for_all (fun row -> List.length row = c) elements then
-          let all_numeric = List.for_all 
+          let all_int = List.for_all 
             (fun row -> List.for_all 
-              (fun e -> 
-                let t = type_expr gamma e in 
-                t = IntType || t = FloatType
-              ) row
+              (fun e -> (type_expr gamma e ) = IntType) row
             ) elements
+          and all_float = List.for_all 
+            (fun row -> List.for_all 
+              (fun e -> (type_expr gamma e) = FloatType) row
+            ) elements 
           in
-          if all_numeric then MatrixType
+          if all_int || all_float then MatrixType
           else raise (TypeError ("Matrix elements must be numeric (int or float)", 
                                !current_loc.line, !current_loc.column))
         else raise (TypeError ("Matrix literal: column count mismatch", 
@@ -234,15 +220,34 @@ let rec type_expr gamma = function
   | Index(e, idx1, None) ->
       (match type_expr gamma e with
        | VectorType ->
-           if type_expr gamma idx1 = IntType then FloatType
+           if type_expr gamma idx1 = IntType then 
+             (* Return element type based on vector content *)
+             (match e with
+              | VectorLit(_, elems) when elems <> [] ->
+                  (* For vector literals, check the element type *)
+                  let elem_type = type_expr gamma (List.hd elems) in
+                  elem_type
+              | _ ->
+                  (* Default to FloatType for vectors from other sources *)
+                  FloatType)
            else raise (TypeError ("Vector index must be an integer", 
                                   !current_loc.line, !current_loc.column))
        | _ -> raise (TypeError ("Single index access requires a vector", 
                                 !current_loc.line, !current_loc.column)))
+                                
   | Index(e, idx1, Some idx2) ->
       (match type_expr gamma e with
        | MatrixType ->
-           if type_expr gamma idx1 = IntType && type_expr gamma idx2 = IntType then FloatType
+           if type_expr gamma idx1 = IntType && type_expr gamma idx2 = IntType then
+             (* Return element type based on matrix content *)
+             (match e with
+              | MatrixLit(_, _, rows) when rows <> [] && List.hd rows <> [] ->
+                  (* For matrix literals, check the element type *)
+                  let elem_type = type_expr gamma (List.hd (List.hd rows)) in
+                  elem_type
+              | _ ->
+                  (* Default to FloatType for matrices from other sources *)
+                  FloatType)
            else raise (TypeError ("Matrix indices must be integers", 
                                   !current_loc.line, !current_loc.column))
        | _ -> raise (TypeError ("Double index access requires a matrix", 
@@ -254,44 +259,76 @@ let rec type_expr gamma = function
 let rec type_stmt gamma stmt =
   match stmt with
   | ExprStmt e -> let _ = type_expr gamma e in gamma
-  | DeclStmt(id, typ, None) -> (id, typ)::gamma
+  | DeclStmt(id, typ, None) -> 
+      if List.exists (fun (x,_) -> x = id) gamma then
+        raise (TypeError ("Variable " ^ id ^ " already declared", 
+                          !current_loc.line, !current_loc.column))
+      else
+        let t = match typ with
+          | IntType | FloatType | BoolType -> typ
+          | VectorType -> VectorType
+          | MatrixType -> MatrixType
+        in (id, t) :: gamma  (* Add variable to gammaironment *)
   | DeclStmt(id, typ, Some e) ->
+      if List.exists (fun (x,_) -> x = id) gamma then
+        raise (TypeError ("Variable " ^ id ^ " already declared", 
+                          !current_loc.line, !current_loc.column))
+    else
       let t_e = type_expr gamma e in
-      if compatible typ t_e then (id, typ)::gamma
-      else raise (TypeError ("Declaration type mismatch: cannot initialize " ^ 
-                             string_of_type typ ^ " with " ^ string_of_type t_e, 
-                             !current_loc.line, !current_loc.column))
+      ( match (t_e,typ) with 
+        | (IntType, IntType) | (FloatType, FloatType) | (BoolType, BoolType) ->  (id,typ) :: gamma
+        | ( VectorType, VectorType) | (MatrixType, MatrixType) -> (id,typ) :: gamma
+        | _ -> raise (TypeError ("Declaration type mismatch: cannot assign " ^ 
+                               string_of_type t_e ^ " to " ^ string_of_type typ, 
+                               !current_loc.line, !current_loc.column)))
   | AssignStmt(id, e) ->
       let t_var = lookup gamma id in
       let t_e = type_expr gamma e in
-      if compatible t_var t_e then gamma
-      else raise (TypeError ("Assignment type mismatch: cannot assign " ^ 
-                             string_of_type t_e ^ " to " ^ string_of_type t_var, 
-                             !current_loc.line, !current_loc.column))
+      ( match t_var,t_e with
+        | IntType,IntType | FloatType,FloatType | BoolType,BoolType -> gamma
+        | VectorType,VectorType | MatrixType,MatrixType -> gamma
+        | _ -> raise (TypeError ("Assignment requires a variable of numeric type", 
+                                 !current_loc.line, !current_loc.column)))
   | ArrayAssignStmt(id, idx1, idx2_opt, e) ->
-      let t_var = lookup gamma id in
-      let t_e = type_expr gamma e in
-      (match t_var with
-       | VectorType ->
-           if type_expr gamma idx1 = IntType then 
-             if compatible t_var t_e then gamma
-             else raise (TypeError ("Assignment type mismatch: cannot assign " ^ 
-                                    string_of_type t_e ^ " to " ^ string_of_type t_var, 
-                                    !current_loc.line, !current_loc.column))
-           else raise (TypeError ("Vector index must be an integer", 
-                                  !current_loc.line, !current_loc.column))
-       | MatrixType ->
-           if type_expr gamma idx1 = IntType && 
-              (match idx2_opt with Some i -> type_expr gamma i = IntType | None -> true) then 
-             if compatible t_var t_e then gamma
-             else raise (TypeError ("Assignment type mismatch: cannot assign " ^ 
-                                    string_of_type t_e ^ " to " ^ string_of_type t_var, 
-                                    !current_loc.line, !current_loc.column))
-           else raise (TypeError ("Matrix indices must be integers", 
-                                  !current_loc.line, !current_loc.column))
-       | _ -> raise (TypeError ("Array assignment requires a vector or matrix", 
-                                !current_loc.line, !current_loc.column)))
+    let t_var = lookup gamma id in
+    let t_idx1 = type_expr gamma idx1 in
+    let t_e = type_expr gamma e in
 
+    (match t_var, t_idx1, idx2_opt with
+    | VectorType, IntType, None ->
+        (* Vector assignment with single integer index *)
+        if t_e = FloatType || t_e = IntType then gamma  (* Keep checking for both types *)
+        else raise (TypeError ("Vector element assignment type mismatch: cannot assign " ^ 
+                              string_of_type t_e ^ " to vector element", 
+                              !current_loc.line, !current_loc.column))
+                              
+    | MatrixType, IntType, Some idx2 ->
+        (* Matrix assignment with two indices *)
+        let t_idx2 = type_expr gamma idx2 in
+        if t_idx2 <> IntType then
+          raise (TypeError ("Matrix column index must be an integer", 
+                           !current_loc.line, !current_loc.column))
+        else if t_e = FloatType || t_e = IntType then gamma
+        else raise (TypeError ("Matrix element assignment type mismatch: cannot assign " ^ 
+                              string_of_type t_e ^ " to matrix element", 
+                              !current_loc.line, !current_loc.column))
+                              
+    | VectorType, _, _ ->
+        raise (TypeError ("Vector index must be an integer", 
+                          !current_loc.line, !current_loc.column))
+                          
+    | MatrixType, IntType, None ->
+        raise (TypeError ("Matrix assignment requires two indices", 
+                          !current_loc.line, !current_loc.column))
+                          
+    | MatrixType, _, _ ->
+        raise (TypeError ("Matrix indices must be integers", 
+                          !current_loc.line, !current_loc.column))
+                          
+    | _, _, _ ->
+        raise (TypeError ("Array assignment requires a vector or matrix, got " ^ 
+                          string_of_type t_var, 
+                          !current_loc.line, !current_loc.column)))
   | IfStmt(cond, then_block, else_opt) ->
       if type_expr gamma cond <> BoolType then
         raise (TypeError ("If condition must be boolean", 
