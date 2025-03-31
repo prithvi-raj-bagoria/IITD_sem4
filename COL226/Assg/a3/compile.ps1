@@ -1,7 +1,6 @@
 # compile.ps1 - Compilation script for Matrix/Vector DSL
 param (
     [switch]$clean = $false,
-    [switch]$run = $false,
     [switch]$verbose = $false
 )
 
@@ -72,14 +71,6 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# Compile the tokens interface
-echo "Compiling tokens.mli..."
-ocamlc -c tokens.mli
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to compile tokens.mli"
-    exit 1
-}
-
 # Important: compile parser.mli BEFORE parser.ml
 echo "Compiling parser.mli..."
 ocamlc -c parser.mli
@@ -117,7 +108,7 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# Step 3: Link everything together (excluding tokens.cmo since it's only an interface)
+# Step 3: Link everything together
 echo "Linking final executable..."
 ocamlc -o dsl.exe ast.cmo parser.cmo lexer.cmo typechecker.cmo main.cmo
 if ($LASTEXITCODE -ne 0) {
@@ -125,16 +116,4 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# Step 4: Run with input.txt if requested or -run flag is set
-if ($run -or (-not $clean)) {
-    echo "Running with input from input.txt..."
-    if (-not (Test-Path "input.txt")) {
-        Write-Error "input.txt not found in the current directory."
-        exit 1
-    }
-    
-    echo "AST Output:"
-    Get-Content "input.txt" | .\dsl.exe
-}
-
-echo "Done."
+echo "Done. Executable 'dsl.exe' created successfully."
