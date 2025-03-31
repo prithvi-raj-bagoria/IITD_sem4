@@ -95,6 +95,13 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
+echo "Compiling eval.ml..."
+ocamlc -c eval.ml
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to compile eval.ml"
+    exit 1
+}
+
 echo "Compiling main.ml..."
 ocamlc -c main.ml
 if ($LASTEXITCODE -ne 0) {
@@ -104,7 +111,7 @@ if ($LASTEXITCODE -ne 0) {
 
 # Step 3: Link everything together
 echo "Linking final executable..."
-ocamlc -o dsl.exe ast.cmo parser.cmo lexer.cmo typechecker.cmo main.cmo
+ocamlc -o dsl.exe ast.cmo parser.cmo lexer.cmo typechecker.cmo eval.cmo main.cmo
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to link modules into executable"
     exit 1

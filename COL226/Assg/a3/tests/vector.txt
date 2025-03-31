@@ -2,6 +2,7 @@
 
 // Vector creation and access
 vector v1 := [1, 2, 3, 4, 5];
+v1[2]:=3;
 print(v1);
 print(v1[2]);  // Should print 3 (0-indexed)
 

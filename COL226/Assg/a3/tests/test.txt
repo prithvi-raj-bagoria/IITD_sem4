@@ -14,7 +14,7 @@ bool logical := true && false || true;
 vector v1 := [1, 2, 3];
 vector v2 := [4, 5, 6];
 vector v_sum := v1 + v2;
-float dot_product := v1 . v2;
+float dot_product := v1 dot v2;
 float magnitude := mag(v1);
 
 // Matrix operations

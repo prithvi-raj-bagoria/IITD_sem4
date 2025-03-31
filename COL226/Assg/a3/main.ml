@@ -3,6 +3,7 @@ open Lexer
 open Parser
 open Lexing
 open Typechecker
+open Eval  (* Add this import for the evaluator *)
 
 (* Helper for printing positions *)
 let print_position lexbuf =
@@ -449,11 +450,26 @@ let typecheck_with_locations ast =
   
   try
     let _ = run_typechecker () in
-    print_endline "\027[32mType checking succeeded!\027[0m"
+    print_endline "\027[32mType checking succeeded!\027[0m";
+    Some ast  (* Return the AST if type checking succeeds *)
   with
   | Typechecker.TypeError(msg, line, col) ->
       print_endline ("\027[31mType error at line " ^ string_of_int line ^ 
                     ", column " ^ string_of_int col ^ ": " ^ msg ^ "\027[0m");
+      exit 1
+
+(* New function to evaluate the program after type checking *)
+let evaluate_program ast =
+  print_endline "\nEvaluating program...";
+  try
+    let result = Eval.eval_program ast in
+    print_endline "\027[32mEvaluation completed successfully!\027[0m";
+    match result with
+    | UnitVal -> ()  (* Nothing to print for unit values *)
+    | _ -> print_endline ("Result: " ^ Eval.string_of_value result)
+  with
+  | Failure msg -> 
+      print_endline ("\027[31mRuntime error: " ^ msg ^ "\027[0m");
       exit 1
 
 (* Main driver *)
@@ -518,11 +534,16 @@ let () =
       print_endline "Type checking...";
       
       (* Call typechecker with location tracking *)
-      typecheck_with_locations ast;
+      let checked_ast = typecheck_with_locations ast in
       
       (* If no type error was found, print the AST *)
       print_endline "\nAbstract Syntax Tree:";
       print_endline (string_of_program_tree ast);
+
+      (* Now evaluate the program if type checking succeeded *)
+      match checked_ast with
+      | Some ast -> evaluate_program ast
+      | None -> ()  (* This should never happen due to exit in typecheck_with_locations *)
 
     with
     | Parsing.Parse_error ->
