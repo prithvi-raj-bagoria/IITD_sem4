@@ -1,7 +1,6 @@
 # compile.ps1 - Compilation script for Matrix/Vector DSL
 param (
-    [switch]$clean = $false,
-    [switch]$verbose = $false
+    [switch]$clean = $false
 )
 
 # Cleaning function
@@ -41,7 +40,7 @@ if (-not (Get-Command ocamlyacc -ErrorAction SilentlyContinue)) {
 }
 
 # Step 1: Generate lexer and parser
-echo "Generating lexer..."
+echo "Generating lsexer..."
 ocamllex lexer.mll
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to process lexer.mll"
@@ -49,12 +48,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 echo "Generating parser..."
-if ($verbose) {
-    # Generate verbose output for debugging conflicts
-    ocamlyacc -v parser.mly
-} else {
-    ocamlyacc parser.mly
-}
+ocamlyacc parser.mly
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to process parser.mly"
     exit 1
