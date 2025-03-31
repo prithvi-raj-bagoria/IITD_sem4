@@ -131,13 +131,16 @@ let rec string_of_expr = function
       "Index(" ^ string_of_expr e ^ ", " ^ string_of_expr idx1 ^ idx2_str ^ ")"
   | Input( s) -> "Input(\"" ^ s ^ "\")"  (* Changed: removed Some *)
   | Print(e) -> "Print(" ^ string_of_expr e ^ ")"
-  | Assign(id, e) -> "Assign(\"" ^ id ^ "\", " ^ string_of_expr e ^ ")"
 
 let rec string_of_stmt = function
   | ExprStmt(e) -> "ExprStmt(" ^ string_of_expr e ^ ")"
   | DeclStmt(id, typ, None) -> "DeclStmt(\"" ^ id ^ "\", " ^ Typechecker.string_of_type typ ^ ")"
   | DeclStmt(id, typ, Some e) -> "DeclStmt(\"" ^ id ^ "\", " ^ Typechecker.string_of_type typ ^ ", " ^ string_of_expr e ^ ")"
   | AssignStmt(id, e) -> "AssignStmt(\"" ^ id ^ "\", " ^ string_of_expr e ^ ")"
+  | ArrayAssignStmt(id, idx1, None, e) ->
+    "ArrayAssignStmt(\"" ^ id ^ "\"[" ^ string_of_expr idx1 ^ "] := " ^ string_of_expr e ^ ")"
+  | ArrayAssignStmt(id, idx1, Some idx2, e) ->
+    "ArrayAssignStmt(\"" ^ id ^ "\"[" ^ string_of_expr idx1 ^ "][" ^ string_of_expr idx2 ^ "] := " ^ string_of_expr e ^ ")"
   | IfStmt(cond, then_block, else_block_opt) ->
       let else_str = match else_block_opt with
         | None -> "no else"
@@ -298,10 +301,6 @@ let rec string_of_expr_tree expr indent =
   | Print(e) -> 
       node_indent ^ "Print\n" ^ 
       string_of_expr_tree e last_child_indent
-  | Assign(id, e) -> 
-      node_indent ^ "Assign\n" ^ 
-      node_indent ^ "│   var: " ^ id ^ "\n" ^
-      string_of_expr_tree e (last_child_indent ^ "    ")
 
 and string_list_expr_tree exprs indent last_indent =
   match exprs with
@@ -341,6 +340,22 @@ let rec string_of_stmt_tree stmt indent =
       node_indent ^ "AssignStmt\n" ^ 
       node_indent ^ "│   var: " ^ id ^ "\n" ^
       string_of_expr_tree e last_child_indent
+      | ArrayAssignStmt(id, idx1, None, e) ->
+        node_indent ^ "ArrayAssignStmt\n" ^
+        node_indent ^ "│   var: " ^ id ^ "\n" ^
+        node_indent ^ "│   index: \n" ^ 
+        string_of_expr_tree idx1 (child_indent ^ "│   ") ^ "\n" ^
+        last_indent ^ "value: \n" ^
+        string_of_expr_tree e last_child_indent
+    | ArrayAssignStmt(id, idx1, Some idx2, e) ->
+        node_indent ^ "ArrayAssignStmt\n" ^
+        node_indent ^ "│   var: " ^ id ^ "\n" ^
+        node_indent ^ "│   row: \n" ^ 
+        string_of_expr_tree idx1 (child_indent ^ "│   ") ^ "\n" ^
+        node_indent ^ "│   col: \n" ^ 
+        string_of_expr_tree idx2 (child_indent ^ "│   ") ^ "\n" ^
+        last_indent ^ "value: \n" ^
+        string_of_expr_tree e last_child_indent
   | IfStmt(cond, then_block, None) -> 
       node_indent ^ "IfStmt\n" ^ 
       node_indent ^ "│   condition:\n" ^ 
@@ -406,6 +421,9 @@ let typecheck_with_locations ast =
     | AssignStmt(_, _) -> 
         line_map := (stmt, line) :: !line_map;
         line + 1
+    | ArrayAssignStmt(_, _, _, _) ->
+      line_map := (stmt, line) :: !line_map;
+      line + 1
     | IfStmt(_, then_block, else_opt) ->
         line_map := (stmt, line) :: !line_map;
         let new_line = process_block then_block (line + 1) in
@@ -509,15 +527,13 @@ let () =
     
     (* Parse the input and print AST *)
     try
-      print_endline "Lexing input...";
-(* Collect all tokens first *)
-      (* Print all tokens *)
-      (* let tokens = collect_tokens lexbuf in
+      
+      print_endline "\nLexing input...";
+      let tokens = collect_tokens lexbuf in
       print_endline "Tokens:";
       List.iter (fun token -> 
-      print_endline ("  " ^ token_to_string token)
-      ) tokens; *)
-      
+        print_endline ("  " ^ token_to_string token)
+      ) tokens;
       (* Reset lexbuf for parsing with correct position *)
       let lexbuf = Lexing.from_string !input in
       let () = lexbuf.lex_curr_p <- { 
@@ -526,9 +542,16 @@ let () =
         pos_bol = 0;
         pos_cnum = 0 
       } in
-      
-      print_endline "\nParsing input...";
-      let ast = Parser.program Lexer.token lexbuf in
+      print_endline "\nParsing tokens...";
+      let token_stream = ref tokens in
+      let token_from_stream _ =
+        match !token_stream with
+        | [] -> EOF
+        | hd :: tl ->
+        token_stream := tl;
+        hd
+      in
+      let ast = Parser.program token_from_stream lexbuf in
       
       (* Type checking *)
       print_endline "Type checking...";
@@ -547,7 +570,7 @@ let () =
 
     with
     | Parsing.Parse_error ->
-        let pos = lexbuf.lex_curr_p in
+        let _pos = lexbuf.lex_curr_p in
         prerr_endline ("\027[31mSyntax error at " ^ print_position lexbuf ^ "\027[0m");
         exit 1
     | Lexer.SyntaxError msg ->

@@ -45,13 +45,13 @@ type expr =
   | Index of expr * expr * expr option  (* Modified: third argument is now an option *)
   | Input of string 
   | Print of expr
-  | Assign of string * expr
 
 (* Statement definitions *)
 type stmt =
   | ExprStmt of expr
   | DeclStmt of string * typ * expr option
   | AssignStmt of string * expr
+  | ArrayAssignStmt of string * expr * expr option * expr
   | IfStmt of expr * block * block option
   | ForStmt of stmt * expr * stmt * block
   | WhileStmt of expr * block

@@ -66,12 +66,12 @@ stmt:
   | type_spec ID ASSIGN expr SEMICOLON { DeclStmt($2, $1, Some $4) }
   | ID ASSIGN expr SEMICOLON { AssignStmt($1, $3) }
   | ID LBRACKET expr RBRACKET LBRACKET expr RBRACKET ASSIGN expr SEMICOLON { 
-      (* Handle matrix element assignment A[i][j] := expr using existing Assign node *)
-      ExprStmt(Assign($1, $9)) 
+      (* Handle matrix element assignment A[i][j] := expr *)
+      ArrayAssignStmt($1, $3, Some($6), $9) 
     }
   | ID LBRACKET expr RBRACKET ASSIGN expr SEMICOLON { 
-      (* Handle vector element assignment A[i] := expr using existing Assign node *)
-      ExprStmt(Assign($1, $6)) 
+      (* Handle vector element assignment A[i] := expr *)
+      ArrayAssignStmt($1, $3, None, $6) 
     }
   | IF LPAREN expr RPAREN LBRACE stmt_list RBRACE { IfStmt($3, $6, None) }
   | IF LPAREN expr RPAREN LBRACE stmt_list RBRACE ELSE LBRACE stmt_list RBRACE { IfStmt($3, $6, Some $10) }

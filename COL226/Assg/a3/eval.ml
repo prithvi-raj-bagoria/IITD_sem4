@@ -644,14 +644,7 @@ let rec eval_expr (e : expr) (rho : env) : value =
 let rec eval_stmt (s : stmt) (rho : env) =
   match s with
   | ExprStmt e ->
-      (* For expression statements, we need to handle Assign specially *)
-      (match e with
-       | Assign(id, e') ->
-           let v = eval_expr e' rho in
-           update rho id v  (* Update the environment for assign statements *)
-       | _ -> 
-           let _ = eval_expr e rho in
-           rho)
+      let _ = eval_expr e rho in rho
       
   | DeclStmt (id, _, None) -> 
       (* Variable declaration without initialization - use UnitVal as default *)
@@ -665,7 +658,49 @@ let rec eval_stmt (s : stmt) (rho : env) =
   | AssignStmt (id, e) ->
       let v = eval_expr e rho in
       update rho id v
-      
+
+  | ArrayAssignStmt (id, idx1, idx2_opt, e) ->
+    (* First evaluate the indices and the value *)
+    let i1 = match eval_expr idx1 rho with
+             | IntVal n -> n
+             | _ -> failwith "Runtime error: Index must be an integer" in
+    let i2_opt = match idx2_opt with
+                | None -> None
+                | Some idx2 -> match eval_expr idx2 rho with
+                               | IntVal n -> Some n
+                               | _ -> failwith "Runtime error: Index must be an integer" in
+    let v = eval_expr e rho in
+    
+    (* Get the array value from the environment *)
+    let arr = lookup rho id in
+    
+    (* Update the array value based on the indices *)
+    let updated_arr = match arr, i2_opt with
+      | VectorVal vec, None ->
+          if i1 < 0 || i1 >= List.length vec then
+            failwith ("Runtime error: Vector index out of bounds: " ^ string_of_int i1)
+          else
+            VectorVal (List.mapi (fun i el -> if i = i1 then v else el) vec)
+      | MatrixVal mat, Some i2 ->
+          if i1 < 0 || i1 >= List.length mat then
+            failwith ("Runtime error: Matrix row index out of bounds: " ^ string_of_int i1)
+          else
+            let row = List.nth mat i1 in
+            if i2 < 0 || i2 >= List.length row then
+              failwith ("Runtime error: Matrix column index out of bounds: " ^ string_of_int i2)
+            else
+              MatrixVal (List.mapi (fun i r -> 
+                if i = i1 then 
+                  List.mapi (fun j el -> if j = i2 then v else el) r
+                else r
+              ) mat)
+      | _, None -> failwith "Runtime error: Single index requires a vector"
+      | _, Some _ -> failwith "Runtime error: Double index requires a matrix"
+    in
+    
+    (* Update the environment with the modified array *)
+    update rho id updated_arr
+
   | IfStmt (cond, then_block, else_opt) ->
       let v = eval_expr cond rho in
       (match v with
