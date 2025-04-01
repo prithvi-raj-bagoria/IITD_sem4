@@ -74,6 +74,39 @@ let collect_tokens lexbuf =
   in
   loop []
 
+(* New type to track token positions *)
+type token_pos = {
+  token : Parser.token;
+  line : int;
+  column : int;
+}
+
+(* Function to collect tokens with position information *)
+let collect_tokens_with_pos lexbuf =
+  let rec loop tokens =
+    let token = Lexer.token lexbuf in
+    let pos = lexbuf.lex_curr_p in
+    let token_with_pos = {
+      token = token;
+      line = pos.pos_lnum;
+      column = pos.pos_cnum - pos.pos_bol;
+    } in
+    match token with
+    | EOF -> List.rev (token_with_pos :: tokens)  (* Include EOF token *)
+    | _ -> loop (token_with_pos :: tokens)
+  in
+  loop []
+
+(* Find source line by line number *)
+let find_source_line input line_num =
+  try
+    let lines = String.split_on_char '\n' input in
+    if line_num >= 1 && line_num <= List.length lines then
+      Some (List.nth lines (line_num - 1))
+    else
+      None
+  with _ -> None
+
 (* Function to pretty-print ASTs *)
 let rec string_of_expr = function
   | BoolLit(b) -> "BoolLit(" ^ string_of_bool b ^ ")"
@@ -405,75 +438,17 @@ let extract_line_info lexbuf =
   let pos = lexbuf.lex_curr_p in
   (pos.pos_lnum, pos.pos_cnum - pos.pos_bol)
 
-(* Modified typechecking with line tracking *)
-let typecheck_with_locations ast =
-  let line_map = ref [] in
-  
-  (* Build a map of line numbers *)
-  let rec process_stmt stmt line =
-    match stmt with
-    | ExprStmt(e) -> 
-        line_map := (stmt, line) :: !line_map;
-        line + 1
-    | DeclStmt(_, _, _) -> 
-        line_map := (stmt, line) :: !line_map;
-        line + 1
-    | AssignStmt(_, _) -> 
-        line_map := (stmt, line) :: !line_map;
-        line + 1
-    | ArrayAssignStmt(_, _, _, _) ->
-      line_map := (stmt, line) :: !line_map;
-      line + 1
-    | IfStmt(_, then_block, else_opt) ->
-        line_map := (stmt, line) :: !line_map;
-        let new_line = process_block then_block (line + 1) in
-        (match else_opt with
-         | None -> new_line
-         | Some else_blk -> process_block else_blk new_line)
-    | WhileStmt(_, block) ->
-        line_map := (stmt, line) :: !line_map;
-        process_block block (line + 1)
-    | ForStmt(_, _, _, block) ->
-        line_map := (stmt, line) :: !line_map;
-        process_block block (line + 1)
-    | Block(stmts) ->
-        line_map := (stmt, line) :: !line_map;
-        process_block stmts (line + 1)
-  
-  and process_block stmts line =
-    List.fold_left (fun l stmt -> process_stmt stmt l) line stmts
-  in
-  
-  let process_ast = function
-    | Program(stmts) -> process_block stmts 1
-  in
-  
-  (* Process the AST to build line map *)
-  let _ = process_ast ast in
-  
-  (* Run the actual typechecker *)
-  let run_typechecker () =
-    (* Set location before checking each statement *)
-    let rec check_stmt env stmt =
-      let line = try List.assoc stmt !line_map with Not_found -> 1 in
-      Typechecker.with_loc line 0 (fun () -> Typechecker.type_stmt env stmt)
-    
-    and check_block env stmts =
-      List.fold_left check_stmt env stmts
-    in
-    
-    match ast with
-    | Program(stmts) -> check_block [] stmts
-  in
-  
+(* Modified typechecking with enhanced error reporting *)
+let typechecker ast =
   try
-    let _ = run_typechecker () in
+    let _ = match ast with 
+      | Program stmts -> Typechecker.type_block StringMap.empty stmts
+    in
     print_endline "\027[32mType checking succeeded!\027[0m";
-    Some ast  (* Return the AST if type checking succeeds *)
+    Some ast
   with
-  | Typechecker.TypeError(msg, line, col) ->
-      print_endline ("\027[31mType error at line " ^ string_of_int line ^ 
-                    ", column " ^ string_of_int col ^ ": " ^ msg ^ "\027[0m");
+  | Typechecker.TypeError msg ->
+      Printf.eprintf "\027[31m%s\027[0m\n" msg;
       exit 1
 
 (* New function to evaluate the program after type checking *)
@@ -525,6 +500,9 @@ let () =
       pos_cnum = 0 
     } in
     
+    (* Define current_pos reference outside try block so it's available in exception handlers *)
+    let current_pos = ref { line = 1; column = 0; token = EOF } in
+    
     (* Parse the input and print AST *)
     try
       
@@ -534,6 +512,17 @@ let () =
       List.iter (fun token -> 
         print_endline ("  " ^ token_to_string token)
       ) tokens;
+      
+      (* Collect tokens with position information *)
+      let lexbuf = Lexing.from_string !input in
+      let () = lexbuf.lex_curr_p <- { 
+        pos_fname = filename;
+        pos_lnum = 1;
+        pos_bol = 0;
+        pos_cnum = 0 
+      } in
+      let tokens_with_pos = collect_tokens_with_pos lexbuf in
+      
       (* Reset lexbuf for parsing with correct position *)
       let lexbuf = Lexing.from_string !input in
       let () = lexbuf.lex_curr_p <- { 
@@ -543,14 +532,19 @@ let () =
         pos_cnum = 0 
       } in
       print_endline "\nParsing tokens...";
-      let token_stream = ref tokens in
+      
+      (* Track position information while consuming tokens *)
+      let token_stream = ref tokens_with_pos in
+      
       let token_from_stream _ =
         match !token_stream with
         | [] -> EOF
-        | hd :: tl ->
-        token_stream := tl;
-        hd
+        | token_pos :: tl ->
+            current_pos := token_pos;
+            token_stream := tl;
+            token_pos.token
       in
+      
       let ast = Parser.program token_from_stream lexbuf in
       print_endline "\nAbstract Syntax Tree:";
       print_endline (string_of_program_tree ast);
@@ -559,22 +553,44 @@ let () =
       print_endline "Type checking...";
       
       (* Call typechecker with location tracking *)
-      let checked_ast = typecheck_with_locations ast in
+      let checked_ast = typechecker ast in
 
       (* Now evaluate the program if type checking succeeded *)
       match checked_ast with
       | Some ast -> evaluate_program ast
-      | None -> ()  (*This should never happen due to exit in typecheck_with_locations *)
+      | None -> ()  (*This should never happen due to exit in typechecker *)
 
     with
     | Parsing.Parse_error ->
-        let _pos = lexbuf.lex_curr_p in
-        prerr_endline ("\027[31mSyntax error at " ^ print_position lexbuf ^ "\027[0m");
+        (* Create detailed error message with line number *)
+        let line_num = !current_pos.line in
+        let col_num = !current_pos.column in
+        let token_str = token_to_string !current_pos.token in
+        
+        (* Get the source line where the error occurred *)
+        let source_line = match find_source_line !input line_num with
+          | Some line -> line
+          | None -> "<line not available>"
+        in
+        
+        (* Format the error message with full context *)
+        let error_msg = Printf.sprintf 
+          "\027[31mSyntax error at line %d, column %d, near token: %s\027[0m\n\n\027[33mSource line:\027[0m\n%s\n%s\027[31m^\027[0m"
+          line_num col_num token_str source_line (String.make col_num ' ')
+        in
+        
+        prerr_endline error_msg;
         exit 1
+    
     | Lexer.SyntaxError msg ->
-        prerr_endline ("\027[31mLexical error at " ^ print_position lexbuf ^ ": " ^ msg ^ "\027[0m");
+        (* Keep detailed line/column reporting only for lexer errors *)
+        let pos = lexbuf.lex_curr_p in
+        let line = pos.pos_lnum in
+        let col = pos.pos_cnum - pos.pos_bol in
+        prerr_endline (Printf.sprintf "\027[31mLexical error at line %d, column %d: %s\027[0m" 
+                      line col msg);
         exit 1
   with
-  | Sys_error msg -> prerr_endline ("System error: " ^ msg)
-  | Failure msg -> prerr_endline ("Error: " ^ msg)
-  | e -> prerr_endline ("Unexpected error: " ^ Printexc.to_string e)
+  | Sys_error msg -> prerr_endline ("\027[31mSystem error: " ^ msg ^ "\027[0m")
+  | Failure msg -> prerr_endline ("\027[31mError: " ^ msg ^ "\027[0m")
+  | e -> prerr_endline ("\027[31mUnexpected error: " ^ Printexc.to_string e ^ "\027[0m")
