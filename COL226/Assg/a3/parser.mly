@@ -108,7 +108,7 @@ expr:
   | expr DIV expr { DIV($1, $3) }
   | expr MOD expr { MOD($1, $3) }
   | expr POWER expr { POWER($1, $3) }
-  | MINUS expr %prec UMINUS { NEG($2) }
+  | MINUS expr %prec UMINUS { MINUS(IntLit(0),$2) }
   | expr AND expr { AND($1, $3) }
   | expr OR expr { OR($1, $3) }
   | expr XOR expr { XOR($1, $3) }
