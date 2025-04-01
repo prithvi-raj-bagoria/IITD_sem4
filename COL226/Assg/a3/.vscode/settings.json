@@ -4,9 +4,10 @@
         "switch": "default"
     },
     "terminal.integrated.profiles.windows": {
-    "PowerShell": {
-        "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
-        "args": ["-NoExit", "-Command", "& opam env | Invoke-Expression"]
-    }
-}
+        "PowerShell": {
+            "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "args": ["-NoExit", "-Command", "(& opam env) -split '\\r?\\n' | ForEach-Object { Invoke-Expression $_ }"]
+        }
+    },
+    "terminal.integrated.defaultProfile.windows": "PowerShell"
 }

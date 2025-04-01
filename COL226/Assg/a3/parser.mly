@@ -1,17 +1,6 @@
 %{
   open Ast
   open Lexing
-  
-  (* Helper function to get the current position in the source code *)
-  let get_pos () =
-    let pos = Parsing.symbol_start_pos () in
-    "line " ^ string_of_int pos.pos_lnum ^ 
-    ", character " ^ string_of_int (pos.pos_cnum - pos.pos_bol)
-  
-  (* Extract elements from vector literals *)
-  let extract_vector_elements = function
-    | Ast.VectorLit(_, elements) -> elements
-    | _ -> failwith ("Expected vector literal in matrix row at " ^ get_pos ())
     
 %}
 
@@ -163,9 +152,13 @@ vector_elements:
 
 non_empty_vector_elements:
   | INT_LITERAL { [IntLit($1)] }
+  | MINUS INT_LITERAL %prec UMINUS { [MINUS(IntLit(0), IntLit($2))] }
   | FLOAT_LITERAL { [FloatLit($1)] }
+  | MINUS FLOAT_LITERAL %prec UMINUS { [MINUS(FloatLit(0.), FloatLit($2))] }
   | INT_LITERAL COMMA non_empty_vector_elements { IntLit($1) :: $3 }
+  | MINUS INT_LITERAL COMMA non_empty_vector_elements %prec UMINUS { MINUS(IntLit(0), IntLit($2)) :: $4 }
   | FLOAT_LITERAL COMMA non_empty_vector_elements { FloatLit($1) :: $3 }
+  | MINUS FLOAT_LITERAL COMMA non_empty_vector_elements %prec UMINUS { MINUS(FloatLit(0.), FloatLit($2)) :: $4 }
 
 /* Define matrix rows */
 matrix_rows:
