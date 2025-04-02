@@ -340,9 +340,18 @@ let compute_determinant matrix =
               let c = List.nth (List.nth mat 1) 0 in
               let d = List.nth (List.nth mat 1) 1 in
               match a, b, c, d with
-              | IntVal a', IntVal b', IntVal c', IntVal d' ->
-                  IntVal ((a' * d') - (b' * c'))
-              | _ -> runtime_error "Mixed types in determinant" None
+                | IntVal a, IntVal b, IntVal c, IntVal d -> 
+                  IntVal (a * d - b * c)
+                | _ ->
+                  (* Convert all values to float and calculate determinant *)
+                  let float_of_val v = match v with
+                  | IntVal n -> float_of_int n
+                  | FloatVal f -> f
+                  | _ -> runtime_error "Non-numeric value in determinant" None 
+                  in
+                  let fa = float_of_val a and fb = float_of_val b 
+                  and fc = float_of_val c and fd = float_of_val d in
+                  FloatVal (fa *. fd -. fb *. fc)
             else
               (* Expand along first row *)
               let sum = ref (IntVal 0) in
@@ -354,12 +363,23 @@ let compute_determinant matrix =
                 let minor_det = det_helper minor_mat (size - 1) in
                 let sign = if j mod 2 = 0 then 1 else -1 in
                 
-                (* Multiply and add to sum *)
-                match !sum, element, minor_det with
-                | IntVal s, IntVal e, IntVal md ->
-                    sum := IntVal (s + sign * e * md)
-                | _ -> runtime_error "Mixed types in determinant" None
-              done;
+                (* Multiply element by cofactor and add to sum *)
+                let term = match element, minor_det with
+                  | IntVal e, IntVal md -> IntVal (sign * e * md)
+                  | FloatVal f, IntVal md -> FloatVal ((float_of_int sign) *. f *. (float_of_int md))
+                  | IntVal e, FloatVal f -> FloatVal ((float_of_int sign) *. (float_of_int e) *. f)
+                  | FloatVal e, FloatVal f -> FloatVal ((float_of_int sign) *. e *. f)
+                  | _, _ -> runtime_error "Non-numeric value in determinant" None 
+                in
+                
+                (* Add to running sum *)
+                sum := match !sum, term with
+                  | IntVal s, IntVal t -> IntVal (s + t)
+                  | FloatVal s, FloatVal t -> FloatVal (s +. t)
+                  | IntVal s, FloatVal t -> FloatVal ((float_of_int s) +. t)
+                  | FloatVal s, IntVal t -> FloatVal (s +. (float_of_int t))
+                  | _, _ -> runtime_error "Non-numeric sum value in determinant" None
+                done;
               !sum in
           
           det_helper rows size
