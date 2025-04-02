@@ -49,6 +49,7 @@ let token_to_string = function
   | TRANS -> "TRANS"
   | DET -> "DET"
   | TRACE -> "TRACE"  (* Added TRACE token *)
+  | INVERSE -> "INVERSE"  (* Add INVERSE token *)
   | ASSIGN -> "ASSIGN"
   | IF -> "IF"
   | ELSE -> "ELSE"
@@ -139,6 +140,7 @@ let rec string_of_expr = function
   | TRANS(e) -> "TRANS(" ^ string_of_expr e ^ ")"
   | DET(e) -> "DET(" ^ string_of_expr e ^ ")"
   | TRACE(e) -> "TRACE(" ^ string_of_expr e ^ ")"
+  | INVERSE(e) -> "INVERSE(" ^ string_of_expr e ^ ")"  (* Add INVERSE expression string conversion *)
   | VectorLit(dim, elements) -> 
       let dim_str = match dim with 
         | IntLit(d) -> string_of_int d
@@ -298,6 +300,9 @@ let rec string_of_expr_tree expr indent =
       string_of_expr_tree e last_child_indent
   | TRACE(e) -> 
       node_indent ^ "TRACE\n" ^ 
+      string_of_expr_tree e last_child_indent
+  | INVERSE(e) -> 
+      node_indent ^ "INVERSE\n" ^ 
       string_of_expr_tree e last_child_indent
   | VectorLit(dim, elements) -> 
       let dim_str = match dim with 
@@ -507,11 +512,11 @@ let () =
     try
       
       print_endline "\nLexing input...";
-      let tokens = collect_tokens lexbuf in
+      (* let tokens = collect_tokens lexbuf in
       print_endline "Tokens:";
       List.iter (fun token -> 
         print_endline ("  " ^ token_to_string token)
-      ) tokens;
+      ) tokens; *)
       
       (* Collect tokens with position information *)
       let lexbuf = Lexing.from_string !input in
@@ -546,8 +551,8 @@ let () =
       in
       
       let ast = Parser.program token_from_stream lexbuf in
-      print_endline "\nAbstract Syntax Tree:";
-      print_endline (string_of_program_tree ast);
+      (* print_endline "\nAbstract Syntax Tree:"; *)
+      (* print_endline (string_of_program_tree ast); *)
 
       (* Type checking *)
       print_endline "Type checking...";

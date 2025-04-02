@@ -1,4 +1,4 @@
- {
+{
   (* Header Section - Use tokens defined in parser.mly*)
   open Parser
   open Printf
@@ -59,6 +59,7 @@ rule token = parse
   | "angle" { ANGLE }
   | "det"   { DET }
   | "trace" { TRACE }
+  | "inverse" { INVERSE }  (* Add inverse function *)
   
   (* Control keywords - MOVED BEFORE IDENTIFIERS *)
   | "if"    { IF }     

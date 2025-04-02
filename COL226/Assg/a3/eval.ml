@@ -64,6 +64,7 @@ let rec short_string_of_expr = function
   | TRANS e -> "trans(" ^ short_string_of_expr e ^ ")"
   | DET e -> "det(" ^ short_string_of_expr e ^ ")"
   | TRACE e -> "trace(" ^ short_string_of_expr e ^ ")"
+  | INVERSE e -> "inverse(" ^ short_string_of_expr e ^ ")"  (* Add inverse string conversion *)
   | VectorLit(_, _) -> "[...vector...]"
   | MatrixLit(_, _, _) -> "[...matrix...]"
   | Index(e, i1, None) -> short_string_of_expr e ^ "[" ^ short_string_of_expr i1 ^ "]"
@@ -385,6 +386,151 @@ let compute_determinant matrix =
           det_helper rows size
   | _ -> runtime_error "Determinant requires a matrix" None
 
+(* Add matrix inverse function *)
+let matrix_inverse matrix =
+  match matrix with
+  | MatrixVal rows ->
+      if rows = [] then
+        runtime_error "Cannot compute inverse of empty matrix" None
+      else if List.length rows <> List.length (List.hd rows) then
+        runtime_error "Matrix must be square for inverse operation" None
+      else
+        let size = List.length rows in
+        if size = 1 then
+          (* 1x1 matrix - inverse is 1/value *)
+          match List.hd (List.hd rows) with
+          | IntVal n -> 
+              if n = 0 then runtime_error "Matrix is singular, cannot compute inverse" None
+              else MatrixVal [[FloatVal (1.0 /. float_of_int n)]]
+          | FloatVal f -> 
+              if f = 0.0 then runtime_error "Matrix is singular, cannot compute inverse" None
+              else MatrixVal [[FloatVal (1.0 /. f)]]
+          | _ -> runtime_error "Matrix elements must be numbers" None
+        else if size = 2 then
+          (* 2x2 matrix - [d, -b; -c, a] / det *)
+          let det_val = match compute_determinant matrix with
+                       | FloatVal d -> d
+                       | IntVal d -> float_of_int d
+                       | _ -> runtime_error "Determinant calculation error" None in
+          
+          if det_val = 0.0 then
+            runtime_error "Matrix is singular, cannot compute inverse" None
+          else
+            let a = match List.nth (List.nth rows 0) 0 with
+                   | IntVal n -> float_of_int n
+                   | FloatVal f -> f
+                   | _ -> runtime_error "Matrix elements must be numbers" None in
+            let b = match List.nth (List.nth rows 0) 1 with
+                   | IntVal n -> float_of_int n
+                   | FloatVal f -> f
+                   | _ -> runtime_error "Matrix elements must be numbers" None in
+            let c = match List.nth (List.nth rows 1) 0 with
+                   | IntVal n -> float_of_int n
+                   | FloatVal f -> f
+                   | _ -> runtime_error "Matrix elements must be numbers" None in
+            let d = match List.nth (List.nth rows 1) 1 with
+                   | IntVal n -> float_of_int n
+                   | FloatVal f -> f
+                   | _ -> runtime_error "Matrix elements must be numbers" None in
+            
+            (* Compute adjugate divided by determinant *)
+            let scale = 1.0 /. det_val in
+            MatrixVal [
+              [FloatVal (d *. scale); FloatVal (-.b *. scale)];
+              [FloatVal (-.c *. scale); FloatVal (a *. scale)]
+            ]
+        else
+          (* For larger matrices, we'd implement a general inverse algorithm *)
+          (* For now, we'll limit to 2x2 matrices *)
+          runtime_error "Matrix inverse currently only supports 1x1 and 2x2 matrices" None
+  | _ -> runtime_error "Inverse operation requires a matrix" None
+
+(* Add new vector-matrix multiply function *)
+let vector_matrix_multiply v m =
+  match v, m with
+  | VectorVal vec, MatrixVal mat ->
+      if mat = [] then
+        runtime_error "Cannot multiply by empty matrix" None
+      else
+        let vec_len = List.length vec in
+        let mat_rows = List.length mat in
+        let _mat_cols = List.length (List.hd mat) in
+      
+        if vec_len <> mat_rows then
+          runtime_error (Printf.sprintf "Vector-matrix multiplication dimension mismatch: vector length %d, matrix rows %d" 
+                                        vec_len mat_rows) None
+        else
+          (* Transpose the matrix to get columns *)
+          let mat_transpose = match transpose (MatrixVal mat) with
+                             | MatrixVal cols -> cols
+                             | _ -> runtime_error "Impossible: Transpose returned non-matrix" None in
+          
+          (* Multiply vector by each column of the transposed matrix *)
+          let result = List.map (fun col ->
+            (* Compute dot product of vector with column *)
+            let products = List.map2 (fun v_elem col_elem ->
+              match v_elem, col_elem with
+              | IntVal n1, IntVal n2 -> IntVal (n1 * n2)
+              | FloatVal f1, FloatVal f2 -> FloatVal (f1 *. f2)
+              | IntVal n, FloatVal f -> FloatVal ((float_of_int n) *. f)
+              | FloatVal f, IntVal n -> FloatVal (f *. (float_of_int n))
+              | _, _ -> runtime_error "Vector-matrix multiplication requires numeric elements" None
+            ) vec col in
+            
+            (* Sum the products *)
+            List.fold_left (fun acc elem ->
+              match acc, elem with
+              | IntVal x, IntVal y -> IntVal (x + y)
+              | FloatVal x, FloatVal y -> FloatVal (x +. y)
+              | IntVal x, FloatVal y -> FloatVal ((float_of_int x) +. y)
+              | FloatVal x, IntVal y -> FloatVal (x +. (float_of_int y))
+              | _, _ -> runtime_error "Vector-matrix multiplication summation error" None
+            ) (IntVal 0) products
+          ) mat_transpose in
+          
+          VectorVal result
+  | _ -> runtime_error "Vector-matrix multiplication requires vector and matrix" None
+
+(* Add new matrix-vector multiply function *)
+let matrix_vector_multiply m v =
+  match m, v with
+  | MatrixVal mat, VectorVal vec ->
+      if mat = [] then
+        runtime_error "Cannot multiply empty matrix by vector" None
+      else
+        let vec_len = List.length vec in
+        let mat_cols = List.length (List.hd mat) in
+        
+        if mat_cols <> vec_len then
+          runtime_error (Printf.sprintf "Matrix-vector multiplication dimension mismatch: matrix columns %d, vector length %d" 
+                                       mat_cols vec_len) None
+        else
+          (* Result is a vector with length equal to number of matrix rows *)
+          let result = List.map (fun row ->
+            (* Compute dot product of row and vector *)
+            let products = List.map2 (fun row_elem vec_elem ->
+              match row_elem, vec_elem with
+              | IntVal n1, IntVal n2 -> IntVal (n1 * n2)
+              | FloatVal f1, FloatVal f2 -> FloatVal (f1 *. f2)
+              | IntVal n, FloatVal f -> FloatVal ((float_of_int n) *. f)
+              | FloatVal f, IntVal n -> FloatVal (f *. (float_of_int n))
+              | _, _ -> runtime_error "Matrix-vector multiplication requires numeric elements" None
+            ) row vec in
+            
+            (* Sum the products *)
+            List.fold_left (fun acc elem ->
+              match acc, elem with
+              | IntVal x, IntVal y -> IntVal (x + y)
+              | FloatVal x, FloatVal y -> FloatVal (x +. y)
+              | IntVal x, FloatVal y -> FloatVal ((float_of_int x) +. y)
+              | FloatVal x, IntVal y -> FloatVal (x +. (float_of_int y))
+              | _, _ -> runtime_error "Matrix-vector multiplication summation error" None
+            ) (IntVal 0) products
+          ) mat in
+          
+          VectorVal result
+  | _ -> runtime_error "Matrix-vector multiplication requires matrix and vector" None
+
 (* Read matrix from file *)
 let read_matrix_from_file filename =
   try
@@ -466,6 +612,8 @@ let rec eval_expr expr env =
       | (MatrixVal _, FloatVal _) -> matrix_scalar_multiply v1 v2
       | (IntVal _, MatrixVal _) -> matrix_scalar_multiply v2 v1
       | (FloatVal _, MatrixVal _) -> matrix_scalar_multiply v2 v1
+      | (MatrixVal _, VectorVal _) -> matrix_vector_multiply v1 v2  (* Added matrix-vector multiplication *)
+      | (VectorVal _, MatrixVal _) -> vector_matrix_multiply v1 v2  (* Added vector-matrix multiplication *)
       | (VectorVal _, VectorVal _) -> eval_expr (DOT (e1, e2)) env  (* Vector * Vector = dot product *)
       | _ -> runtime_error "Multiplication type mismatch" (Some expr))
   
@@ -742,6 +890,10 @@ let rec eval_expr expr env =
             ) (IntVal 0) diagonal
       | _ -> runtime_error "Trace requires a matrix" (Some expr))
   
+  | INVERSE e ->
+      let v = eval_expr e env in
+      matrix_inverse v
+  
   | Index (e, idx1, idx2_opt) ->
       let v = eval_expr e env in
       let i1 = match eval_expr idx1 env with
@@ -753,6 +905,12 @@ let rec eval_expr expr env =
             runtime_error ("Vector index out of bounds: " ^ string_of_int i1) (Some expr)
           else
             List.nth vec i1
+      | None, MatrixVal mat ->
+          (* Handle matrix[i] to return row vector *)
+          if i1 < 0 || i1 >= List.length mat then
+            runtime_error ("Matrix row index out of bounds: " ^ string_of_int i1) (Some expr)
+          else
+            VectorVal (List.nth mat i1)
       | Some idx2, MatrixVal mat ->
           let i2 = match eval_expr idx2 env with
                    | IntVal n -> n
@@ -765,7 +923,7 @@ let rec eval_expr expr env =
               runtime_error ("Matrix column index out of bounds: " ^ string_of_int i2) (Some expr)
             else
               List.nth row i2
-      | None, _ -> runtime_error "Single index requires a vector" (Some expr)
+      | None, _ -> runtime_error "Single index requires a vector or matrix" (Some expr)
       | Some _, _ -> runtime_error "Double index requires a matrix" (Some expr))
   
 

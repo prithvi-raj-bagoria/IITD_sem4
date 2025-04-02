@@ -41,6 +41,7 @@ let rec short_string_of_expr = function
   | TRANS e -> "trans(" ^ short_string_of_expr e ^ ")"
   | DET e -> "det(" ^ short_string_of_expr e ^ ")"
   | TRACE e -> "trace(" ^ short_string_of_expr e ^ ")"
+  | INVERSE e -> "inverse(" ^ short_string_of_expr e ^ ")"  (* Add inverse string conversion *)
   | VectorLit(_, _) -> "[...vector...]"
   | MatrixLit(_, _, _) -> "[...matrix...]"
   | Index(e, i1, None) -> short_string_of_expr e ^ "[" ^ short_string_of_expr i1 ^ "]"
@@ -99,6 +100,8 @@ let rec type_expr gamma expr = match expr with
         | (MatrixType, FloatType) | (FloatType, MatrixType) -> MatrixType
         | (IntType, IntType) -> IntType
         | (FloatType, FloatType) | (IntType,FloatType) | (FloatType,IntType)-> FloatType
+        | (MatrixType, VectorType) -> VectorType  (* Added: Matrix * Vector = Vector *)
+        | (VectorType, MatrixType) -> VectorType  (* Added: Vector * Matrix = Vector *)
         | _ -> type_error ("Multiplication not supported between " ^ 
                           string_of_type t1 ^ " and " ^ string_of_type t2) expr)
   | DIV(e1, e2) ->
@@ -183,6 +186,12 @@ let rec type_expr gamma expr = match expr with
       (match t with
        | MatrixType -> MatrixType
        | _ -> type_error ("TRANS requires a matrix, got " ^ string_of_type t) expr)
+  
+  | INVERSE e ->
+      let t = type_expr gamma e in
+      if t = MatrixType then MatrixType
+      else type_error ("INVERSE requires a square matrix, got " ^ string_of_type t) expr
+  
   | DET e ->
       let t = type_expr gamma e in
       if t = MatrixType then FloatType
@@ -214,14 +223,18 @@ let rec type_expr gamma expr = match expr with
        | VectorType ->
            if type_expr gamma idx1 = IntType then FloatType 
            else type_error ("Vector index must be an integer") expr
-       | _ -> type_error ("Single index access requires a vector") expr)
+       | MatrixType ->
+           (* Allow matrix[i] to return the vector at row i *)
+           if type_expr gamma idx1 = IntType then VectorType
+           else type_error ("Matrix row index must be an integer") expr
+       | _ -> type_error ("Single index access requires a vector or matrix") expr)
   | Index(e, idx1, Some idx2) ->
       (match type_expr gamma e with
        | MatrixType ->
            if type_expr gamma idx1 = IntType && type_expr gamma idx2 = IntType then FloatType
            else type_error ("Matrix indices must be integers") expr
        | _ -> type_error ("Double index access requires a matrix") expr)
-  | Input s_opt -> FloatType  (* Assume input returns float *)
+  | Input s -> FloatType  (* Assume input returns float *)
   | Print e ->  type_expr gamma e
 
 (* Typecheck statements *)

@@ -14,7 +14,7 @@
 %token AND OR NOT XOR
 %token ABS SQRT PLUS MINUS MUL DIV MOD POWER  
 %token EQ NEQ LT GT LEQ GEQ 
-%token DOT MAG DIM ANGLE TRANS DET TRACE
+%token DOT MAG DIM ANGLE TRANS DET TRACE INVERSE
 %token ASSIGN IF ELSE FOR WHILE 
 %token SEMICOLON COMMA
 %token LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET
@@ -34,7 +34,7 @@
 %nonassoc UMINUS
 %right POWER  /* -2**3 = -(2**3) */
 %right NOT  /* Logical NOT should be at same level as UMINUS */
-%nonassoc MAG DIM TRANS DET ABS SQRT ANGLE TRACE DOT /* Function calls */
+%nonassoc MAG DIM TRANS DET ABS SQRT ANGLE TRACE INVERSE DOT /* Function calls */
 %nonassoc LBRACKET MATRIX_COMMA VECTOR_BRACKET  /* Highest precedence - array access */
 
 %start program
@@ -128,6 +128,7 @@ expr:
   | TRANS LPAREN expr RPAREN { TRANS($3) }
   | DET LPAREN expr RPAREN { DET($3) }
   | TRACE LPAREN expr RPAREN { TRACE($3) }  /* Added missing rule for TRACE */
+  | INVERSE LPAREN expr RPAREN { INVERSE($3) }  /* Add inverse rule */
 
 simple_expr:
   | INT_LITERAL { IntLit($1) } /* Simple integer literal */

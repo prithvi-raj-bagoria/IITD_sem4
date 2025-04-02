@@ -40,6 +40,7 @@ type expr =
   | TRANS of expr
   | DET of expr
   | TRACE of expr
+  | INVERSE of expr  (* Add inverse expression *)
   | VectorLit of expr * expr list
   | MatrixLit of expr * expr  * expr list list
   | Index of expr * expr * expr option  (* Modified: third argument is now an option *)

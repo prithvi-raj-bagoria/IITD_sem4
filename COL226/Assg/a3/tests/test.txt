@@ -1,7 +1,125 @@
-matrix m := [
-    [1,0,0],
-    [0,2,0],
-    [0,0,1]
+// a) Matrix Sum
+matrix A2 := [[1, 2], [3, 4]];
+matrix B2 := [[5, 6], [7, 8]];
+matrix add_matrices := A2 + B2;
+print(add_matrices);
+
+// b) Matrix Transpose
+matrix C := [[1, 2, 3], [4, 5, 6]];
+matrix transpose_matrix := trans(C);
+print(transpose_matrix);
+
+// c) Matrix Determinant
+matrix D := [[4, 7], [2, 6]];
+float determinant_of_matrix := det(D);
+print(determinant_of_matrix);
+
+// d) Matrix Inverse with If-Then-Else
+matrix E := [[4, 7], [2, 6]];
+if (det(E) != 0) {
+    // For 2x2 matrix, use the direct inverse formula
+    float det_E := det(E);
+    matrix cofactor_matrix := [[0, 0], [0, 0]];
+    
+    // Calculate cofactor matrix for 2x2
+    cofactor_matrix[0][0] := E[1][1];
+    cofactor_matrix[0][1] := -E[0][1];
+    cofactor_matrix[1][0] := -E[1][0];
+    cofactor_matrix[1][1] := E[0][0];
+    
+    matrix adjoint_matrix := trans(cofactor_matrix);
+    matrix inverse_matrix := (1.0 / det_E) * adjoint_matrix;
+    print(inverse_matrix);
+} else {
+    // Print 0 instead of "Matrix is not invertible"
+    print(0);
+}
+
+// e) Matrix Multiplication
+matrix F := [[1, 2], [3, 4]];
+matrix G := [[5, 6], [7, 8]];
+matrix multiply_matrices := F * G;
+print(multiply_matrices);
+
+// f) Matrix and Vector Product
+matrix H := [[1, 2, 3], [4, 5, 6]];
+vector x := [7, 8, 9];
+// Use the overloaded * operator for matrix-vector multiplication
+vector multiply_vector_matrix := H * x;
+print(multiply_vector_matrix);
+
+// g) Solving Linear System (Ax = b)
+matrix J := [[2, 1], [1, 3]];
+vector b := [5, 7];
+if (det(J) != 0) {
+    // Use the inverse function directly
+    matrix J_inv := inverse(J);
+    // Use the matrix-vector multiplication
+    vector solution := J_inv * b;
+    print(solution);
+} else {
+    // Print 0 instead of "Matrix is not invertible" 
+    print(0);
+}
+
+// h) Eigenvalues (2x2 Matrix)
+matrix K := [[3, 1], [2, 2]];
+float tr := K[0][0] + K[1][1];
+float det_K := det(K);
+float discriminant := tr * tr - 4.0 * det_K;
+
+if (discriminant >= 0) {
+    float eigenvalue1 := (tr + sqrt(discriminant)) / 2.0;
+    float eigenvalue2 := (tr - sqrt(discriminant)) / 2.0;
+    print(eigenvalue1);
+    print(eigenvalue2);
+} else {
+    // Print -1 instead of "Complex eigenvalues"
+    print(-1);
+}
+
+// i) For Loop with vector addition
+vector vector_sum := [0, 0, 0];
+matrix V := [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9],
+    [10, 11, 12],
+    [13, 14, 15]
 ];
-m[0][0]:=m[0][0]+1.;
-print(m);
+int n := 5;
+for (int i := 0; i < n; i := i + 1) {
+    vector_sum := vector_sum + V[i];
+}
+print(vector_sum);
+
+// j) Magnitude of Matrix
+matrix L := [[1, 2, 3], [4, 5, 6], [7, 8, 9]];
+float sum_of_squares := 0.0;
+int rows_L := 3;
+int cols_L := 3;
+
+for (int i := 0; i < rows_L; i := i + 1) {
+    for (int j := 0; j < cols_L; j := j + 1) {
+        sum_of_squares := sum_of_squares + L[i][j] * L[i][j];
+    }
+}
+float magnitude_of_matrix := sqrt(sum_of_squares);
+print(magnitude_of_matrix);
+
+// k) While Loop with matrix power iteration
+matrix M2 := [[0.5, 0.3], [0.2, 0.4]];
+float threshold := 0.000001;
+float norm_diff := 1.0;  // Initial value > threshold
+
+while (norm_diff > threshold) {
+    matrix M_squared := M2 * M2;
+    M2 := M_squared;
+    
+    // Calculate some norm (simplified for example)
+    float current_norm := M2[0][0] + M2[0][1] + M2[1][0] + M2[1][1];
+    norm_diff := current_norm - threshold;
+    
+    print(norm_diff);  // Print to see convergence
+}
+print(M2);
