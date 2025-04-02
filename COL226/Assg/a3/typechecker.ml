@@ -245,6 +245,12 @@ let rec type_stmt gamma stmt = match stmt with
         raise (TypeError ("Variable '" ^ id ^ "' already declared"))
       else
         StringMap.add id typ gamma
+  | DeclStmt(id, typ, Some (Input s)) ->
+                        if is_declared gamma id then
+                          raise (TypeError ("Variable '" ^ id ^ "' already declared"))
+                        else
+                          (* For Input expressions, use the declared type *)
+                          StringMap.add id typ gamma
   | DeclStmt(id, typ, Some e) ->
       if is_declared gamma id then
         raise (TypeError ("Variable '" ^ id ^ "' already declared"))
@@ -255,6 +261,11 @@ let rec type_stmt gamma stmt = match stmt with
         else
           type_error ("Type mismatch in variable declaration: expected " ^ 
                       string_of_type typ ^ ", got " ^ string_of_type t_e) e
+                          
+  | AssignStmt(id, (Input s)) ->
+      let _t_var = lookup gamma id in
+      (* For Input expressions in assignment, use the variable's type *)
+      gamma
   | AssignStmt(id, e) ->
       let t_var = lookup gamma id in
       let t_e = type_expr gamma e in
