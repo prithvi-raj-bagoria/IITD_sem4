@@ -1,6 +1,6 @@
 (* eval.ml - Interpreter for matrix/vector manipulation language *)
 open Ast
-
+open Typechecker (*using short_string_of_expr for runtime errors*)
 (* Runtime value representation *)
 type value =
   | IntVal of int
@@ -20,57 +20,6 @@ let empty_env : env = StringMap.empty
 
 (* Custom runtime error with expression context *)
 exception RuntimeError of string * expr option
-
-(* Helper function for concise value representation in error messages *)
-let rec short_string_of_value = function
-  | IntVal n -> string_of_int n
-  | FloatVal f -> string_of_float f
-  | BoolVal b -> string_of_bool b
-  | VectorVal vs -> "[" ^ String.concat ", " (List.map short_string_of_value vs) ^ "]"
-  | MatrixVal rows -> 
-      "[" ^ String.concat "; " (List.map (fun r -> 
-        "[" ^ String.concat ", " (List.map short_string_of_value r) ^ "]") rows) ^ "]"
-  | UnitVal -> "()"
-
-(* Reuse the short_string_of_expr function from typechecker *)
-let rec short_string_of_expr = function
-  | BoolLit b -> string_of_bool b
-  | IntLit i -> string_of_int i
-  | FloatLit f -> string_of_float f
-  | Var x -> x
-  | PLUS(e1, e2) -> "(" ^ short_string_of_expr e1 ^ " + " ^ short_string_of_expr e2 ^ ")"
-  | MINUS(e1, e2) -> "(" ^ short_string_of_expr e1 ^ " - " ^ short_string_of_expr e2 ^ ")"
-  | MUL(e1, e2) -> "(" ^ short_string_of_expr e1 ^ " * " ^ short_string_of_expr e2 ^ ")"
-  | DIV(e1, e2) -> "(" ^ short_string_of_expr e1 ^ " / " ^ short_string_of_expr e2 ^ ")"
-  | MOD(e1, e2) -> "(" ^ short_string_of_expr e1 ^ " % " ^ short_string_of_expr e2 ^ ")"
-  | POWER(e1, e2) -> "(" ^ short_string_of_expr e1 ^ " ** " ^ short_string_of_expr e2 ^ ")"
-  | NEG e -> "(-" ^ short_string_of_expr e ^ ")"
-  | AND(e1, e2) -> "(" ^ short_string_of_expr e1 ^ " && " ^ short_string_of_expr e2 ^ ")"
-  | OR(e1, e2) -> "(" ^ short_string_of_expr e1 ^ " || " ^ short_string_of_expr e2 ^ ")"
-  | XOR(e1, e2) -> "(" ^ short_string_of_expr e1 ^ " ^ " ^ short_string_of_expr e2 ^ ")"
-  | NOT e -> "!" ^ short_string_of_expr e
-  | EQ(e1, e2) -> "(" ^ short_string_of_expr e1 ^ " == " ^ short_string_of_expr e2 ^ ")"
-  | NEQ(e1, e2) -> "(" ^ short_string_of_expr e1 ^ " != " ^ short_string_of_expr e2 ^ ")"
-  | LT(e1, e2) -> "(" ^ short_string_of_expr e1 ^ " < " ^ short_string_of_expr e2 ^ ")"
-  | GT(e1, e2) -> "(" ^ short_string_of_expr e1 ^ " > " ^ short_string_of_expr e2 ^ ")"
-  | LEQ(e1, e2) -> "(" ^ short_string_of_expr e1 ^ " <= " ^ short_string_of_expr e2 ^ ")"
-  | GEQ(e1, e2) -> "(" ^ short_string_of_expr e1 ^ " >= " ^ short_string_of_expr e2 ^ ")"
-  | DOT(e1, e2) -> "dot(" ^ short_string_of_expr e1 ^ ", " ^ short_string_of_expr e2 ^ ")"
-  | MAG e -> "mag(" ^ short_string_of_expr e ^ ")"
-  | ABS e -> "abs(" ^ short_string_of_expr e ^ ")"
-  | SQRT e -> "sqrt(" ^ short_string_of_expr e ^ ")"
-  | DIM e -> "dim(" ^ short_string_of_expr e ^ ")"
-  | ANGLE(e1, e2) -> "angle(" ^ short_string_of_expr e1 ^ ", " ^ short_string_of_expr e2 ^ ")"
-  | TRANS e -> "trans(" ^ short_string_of_expr e ^ ")"
-  | DET e -> "det(" ^ short_string_of_expr e ^ ")"
-  | TRACE e -> "trace(" ^ short_string_of_expr e ^ ")"
-  | INVERSE e -> "inverse(" ^ short_string_of_expr e ^ ")"  (* Add inverse string conversion *)
-  | VectorLit(_, _) -> "[...vector...]"
-  | MatrixLit(_, _, _) -> "[...matrix...]"
-  | Index(e, i1, None) -> short_string_of_expr e ^ "[" ^ short_string_of_expr i1 ^ "]"
-  | Index(e, i1, Some i2) -> short_string_of_expr e ^ "[" ^ short_string_of_expr i1 ^ "][" ^ short_string_of_expr i2 ^ "]"
-  | Input s -> "input(\"" ^ s ^ "\")"
-  | Print e -> "print(" ^ short_string_of_expr e ^ ")"
 
 (* Runtime error helper *)
 let runtime_error msg expr_opt =
@@ -167,42 +116,6 @@ let matrix_scalar_multiply m scalar =
       ) rows)
   | _ -> runtime_error "Matrix-scalar multiplication requires a matrix" None
 
-let vector_scalar_divide v scalar =
-  match scalar with
-  | IntVal 0 -> runtime_error "Division by zero" None
-  | FloatVal 0.0 -> runtime_error "Division by zero" None
-  | _ ->
-    match v with
-    | VectorVal vs ->
-        VectorVal (List.map (fun x ->
-          match x, scalar with
-          | IntVal n, IntVal s -> IntVal (n / s)
-          | IntVal n, FloatVal s -> FloatVal ((float_of_int n) /. s)
-          | FloatVal f, IntVal s -> FloatVal (f /. (float_of_int s))
-          | FloatVal f, FloatVal s -> FloatVal (f /. s)
-          | _, _ -> runtime_error "Vector elements and scalar must be numbers" None
-        ) vs)
-    | _ -> runtime_error "Vector-scalar division requires a vector" None
-
-let matrix_scalar_divide m scalar =
-  match scalar with
-  | IntVal 0 -> runtime_error "Division by zero" None
-  | FloatVal 0.0 -> runtime_error "Division by zero" None
-  | _ ->
-    match m with
-    | MatrixVal rows ->
-        MatrixVal (List.map (fun row ->
-          List.map (fun x ->
-            match x, scalar with
-            | IntVal n, IntVal s -> IntVal (n / s)
-            | IntVal n, FloatVal s -> FloatVal ((float_of_int n) /. s)
-            | FloatVal f, IntVal s -> FloatVal (f /. (float_of_int s))
-            | FloatVal f, FloatVal s -> FloatVal (f /. s)
-            | _, _ -> runtime_error "Matrix elements and scalar must be numbers" None
-          ) row
-        ) rows)
-    | _ -> runtime_error "Matrix-scalar division requires a matrix" None
-
 let vector_add v1 v2 =
   match v1, v2 with
   | VectorVal vs1, VectorVal vs2 ->
@@ -213,8 +126,7 @@ let vector_add v1 v2 =
           match a, b with
           | IntVal x, IntVal y -> IntVal (x + y)
           | FloatVal x, FloatVal y -> FloatVal (x +. y)
-          | IntVal x, FloatVal y -> FloatVal ((float_of_int x) +. y)
-          | FloatVal x, IntVal y -> FloatVal (x +. (float_of_int y))
+          | IntVal y, FloatVal x | FloatVal x, IntVal y -> FloatVal (x +. (float_of_int y))
           | _, _ -> runtime_error "Vector elements must be numbers" None
         ) vs1 vs2)
   | _, _ -> runtime_error "Vector addition requires vectors" None
@@ -626,10 +538,6 @@ let rec eval_expr expr env =
       | (FloatVal f1, FloatVal f2) -> FloatVal (f1 /. f2)
       | (IntVal n, FloatVal f) -> FloatVal ((float_of_int n) /. f)
       | (FloatVal f, IntVal n) -> FloatVal (f /. (float_of_int n))
-      | (VectorVal _, IntVal _) -> vector_scalar_divide v1 v2
-      | (VectorVal _, FloatVal _) -> vector_scalar_divide v1 v2
-      | (MatrixVal _, IntVal _) -> matrix_scalar_divide v1 v2
-      | (MatrixVal _, FloatVal _) -> matrix_scalar_divide v1 v2
       | _ -> runtime_error "Division type mismatch" (Some expr))
   
   | MOD (e1, e2) -> 
