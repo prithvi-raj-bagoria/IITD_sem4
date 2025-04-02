@@ -53,38 +53,32 @@ let rec string_of_value = function
   | UnitVal -> "()"
 
 (* Vector and matrix operations - with improved error reporting *)
+let apply_op op a b e =
+  match a, b with
+  | IntVal x, IntVal y -> op (`Int (x, y))
+  | FloatVal x, FloatVal y -> op (`Float (x, y))
+  | IntVal x, FloatVal y -> op (`Float (float_of_int x, y))
+  | FloatVal x, IntVal y -> op (`Float (x, float_of_int y))
+  | _ -> runtime_error "Elements must be numbers" (Some e)
+
 let vector_op op v1 v2 e =
-  match (v1, v2) with
-  | (VectorVal vs1, VectorVal vs2) ->
+  match v1, v2 with
+  | VectorVal vs1, VectorVal vs2 ->
       if List.length vs1 <> List.length vs2 then
         runtime_error "Vector operation requires equal dimensions" (Some e)
       else
-        VectorVal (List.map2 (fun a b ->
-          match a, b with
-          | IntVal x, IntVal y -> op (`Int (x, y))
-          | FloatVal x, FloatVal y -> op (`Float (x, y))
-          | IntVal x, FloatVal y -> op (`Float ((float_of_int x), y))
-          | FloatVal x, IntVal y -> op (`Float (x, (float_of_int y)))
-          | _, _ -> runtime_error "Vector elements must be numbers" (Some e)
-        ) vs1 vs2)
+        VectorVal (List.map2 (fun a b -> apply_op op a b e) vs1 vs2)
   | _ -> runtime_error "Vector operation requires vectors" (Some e)
 
 let matrix_op op m1 m2 e =
-  match (m1, m2) with
-  | (MatrixVal rows1, MatrixVal rows2) ->
+  match m1, m2 with
+  | MatrixVal rows1, MatrixVal rows2 ->
       if List.length rows1 <> List.length rows2 ||
-         (rows1 <> [] && List.length (List.hd rows1) <> List.length (List.hd rows2)) then
-        runtime_error "Matrix operation requires equal dimensions" (Some e)
+         (rows1 <> [] && List.length (List.hd rows1) <> List.length (List.hd rows2))
+      then runtime_error "Matrix operation requires equal dimensions" (Some e)
       else
         MatrixVal (List.map2 (fun r1 r2 ->
-          List.map2 (fun a b ->
-            match a, b with
-            | IntVal x, IntVal y -> op (`Int (x, y))
-            | FloatVal x, FloatVal y -> op (`Float (x, y))
-            | IntVal x, FloatVal y -> op (`Float ((float_of_int x), y))
-            | FloatVal x, IntVal y -> op (`Float (x, (float_of_int y)))
-            | _, _ -> runtime_error "Matrix elements must be numbers" (Some e)
-          ) r1 r2
+          List.map2 (fun a b -> apply_op op a b e) r1 r2
         ) rows1 rows2)
   | _ -> runtime_error "Matrix operation requires matrices" (Some e)
 
@@ -116,41 +110,6 @@ let matrix_scalar_multiply m scalar =
       ) rows)
   | _ -> runtime_error "Matrix-scalar multiplication requires a matrix" None
 
-let vector_add v1 v2 =
-  match v1, v2 with
-  | VectorVal vs1, VectorVal vs2 ->
-      if List.length vs1 <> List.length vs2 then
-        runtime_error "Vector addition requires equal dimensions" None
-      else
-        VectorVal (List.map2 (fun a b ->
-          match a, b with
-          | IntVal x, IntVal y -> IntVal (x + y)
-          | FloatVal x, FloatVal y -> FloatVal (x +. y)
-          | IntVal y, FloatVal x | FloatVal x, IntVal y -> FloatVal (x +. (float_of_int y))
-          | _, _ -> runtime_error "Vector elements must be numbers" None
-        ) vs1 vs2)
-  | _, _ -> runtime_error "Vector addition requires vectors" None
-
-let matrix_add m1 m2 =
-  match m1, m2 with
-  | MatrixVal rows1, MatrixVal rows2 ->
-      if List.length rows1 <> List.length rows2 then 
-        runtime_error "Matrix addition requires equal dimensions" None
-      else if List.length rows1 > 0 && 
-              (List.length (List.hd rows1) <> List.length (List.hd rows2)) then
-        runtime_error "Matrix addition requires equal dimensions" None
-      else
-        MatrixVal (List.map2 (fun r1 r2 ->
-          List.map2 (fun a b ->
-            match a, b with
-            | IntVal x, IntVal y -> IntVal (x + y)
-            | FloatVal x, FloatVal y -> FloatVal (x +. y)
-            | IntVal x, FloatVal y -> FloatVal ((float_of_int x) +. y)
-            | FloatVal x, IntVal y -> FloatVal (x +. (float_of_int y))
-            | _, _ -> runtime_error "Matrix elements must be numbers" None
-          ) r1 r2
-        ) rows1 rows2)
-  | _, _ -> runtime_error "Matrix addition requires matrices" None
 
 let transpose matrix =
   match matrix with
@@ -307,54 +266,44 @@ let matrix_inverse matrix =
       else if List.length rows <> List.length (List.hd rows) then
         runtime_error "Matrix must be square for inverse operation" None
       else
-        let size = List.length rows in
-        if size = 1 then
-          (* 1x1 matrix - inverse is 1/value *)
-          match List.hd (List.hd rows) with
-          | IntVal n -> 
-              if n = 0 then runtime_error "Matrix is singular, cannot compute inverse" None
-              else MatrixVal [[FloatVal (1.0 /. float_of_int n)]]
-          | FloatVal f -> 
-              if f = 0.0 then runtime_error "Matrix is singular, cannot compute inverse" None
-              else MatrixVal [[FloatVal (1.0 /. f)]]
-          | _ -> runtime_error "Matrix elements must be numbers" None
-        else if size = 2 then
-          (* 2x2 matrix - [d, -b; -c, a] / det *)
-          let det_val = match compute_determinant matrix with
-                       | FloatVal d -> d
-                       | IntVal d -> float_of_int d
-                       | _ -> runtime_error "Determinant calculation error" None in
-          
-          if det_val = 0.0 then
-            runtime_error "Matrix is singular, cannot compute inverse" None
-          else
-            let a = match List.nth (List.nth rows 0) 0 with
-                   | IntVal n -> float_of_int n
-                   | FloatVal f -> f
-                   | _ -> runtime_error "Matrix elements must be numbers" None in
-            let b = match List.nth (List.nth rows 0) 1 with
-                   | IntVal n -> float_of_int n
-                   | FloatVal f -> f
-                   | _ -> runtime_error "Matrix elements must be numbers" None in
-            let c = match List.nth (List.nth rows 1) 0 with
-                   | IntVal n -> float_of_int n
-                   | FloatVal f -> f
-                   | _ -> runtime_error "Matrix elements must be numbers" None in
-            let d = match List.nth (List.nth rows 1) 1 with
-                   | IntVal n -> float_of_int n
-                   | FloatVal f -> f
-                   | _ -> runtime_error "Matrix elements must be numbers" None in
-            
-            (* Compute adjugate divided by determinant *)
-            let scale = 1.0 /. det_val in
-            MatrixVal [
-              [FloatVal (d *. scale); FloatVal (-.b *. scale)];
-              [FloatVal (-.c *. scale); FloatVal (a *. scale)]
-            ]
+        let det_val = match compute_determinant matrix with
+          | IntVal d -> float_of_int d
+          | FloatVal d -> d
+          | _ -> runtime_error "Determinant calculation error" None
+        in
+        if det_val = 0.0 then
+          runtime_error "Matrix is singular, cannot compute inverse" None
         else
-          (* For larger matrices, we'd implement a general inverse algorithm *)
-          (* For now, we'll limit to 2x2 matrices *)
-          runtime_error "Matrix inverse currently only supports 1x1 and 2x2 matrices" None
+          let _size = List.length rows in
+          (* Compute the cofactor matrix *)
+          let cofactor =
+            List.mapi (fun i row ->
+              List.mapi (fun j _ ->
+                let minor =
+                  List.mapi (fun k r ->
+                    if k = i then None
+                    else Some (
+                      List.mapi (fun l x -> if l = j then None else Some x) r
+                      |> List.filter_map (fun x -> x)
+                    )
+                  ) rows
+                  |> List.filter_map (fun x -> x)
+                in
+                let minor_det =
+                  match compute_determinant (MatrixVal minor) with
+                  | IntVal d -> float_of_int d
+                  | FloatVal d -> d
+                  | _ -> runtime_error "Determinant calculation error" None
+                in
+                let sign = if (i + j) mod 2 = 0 then 1.0 else -1.0 in
+                FloatVal (sign *. minor_det)
+              ) row
+            ) rows
+          in
+          (* Adjugate is the transpose of the cofactor matrix *)
+          let adjugate = transpose (MatrixVal cofactor) in
+          (* Multiply by reciprocal of determinant *)
+          matrix_scalar_multiply adjugate (FloatVal (1.0 /. det_val))
   | _ -> runtime_error "Inverse operation requires a matrix" None
 
 (* Add new vector-matrix multiply function *)
