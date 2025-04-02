@@ -145,7 +145,7 @@ let rec type_expr gamma expr = match expr with
       let t1 = type_expr gamma e1 and t2 = type_expr gamma e2 in
         (match (t1, t2) with
         | (IntType, IntType) -> BoolType
-        | (FloatType, FloatType) -> BoolType
+        | (FloatType, FloatType) | (IntType,FloatType) | (FloatType,IntType)-> BoolType
         | _ -> type_error ("Equality check requires compatible types, got " ^ 
                           string_of_type t1 ^ " and " ^ string_of_type t2) expr)
   | DOT(e1, e2) ->
