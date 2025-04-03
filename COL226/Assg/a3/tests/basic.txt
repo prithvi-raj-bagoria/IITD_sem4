@@ -1,0 +1,265 @@
+// Comprehensive test file for all basic language features
+
+// ===================== PRIMITIVE DATA TYPES & OPERATIONS =====================
+print(1000);  // Section marker for primitive types
+
+// Integer operations
+int a;
+a := 5;
+print(a);
+
+int b;
+b := 7;
+print(a + b);  // Addition: 12
+print(a - b);  // Subtraction: -2
+print(a * b);  // Multiplication: 35
+print(b / a);  // Division: 1
+print(b % a);  // Modulo: 2
+print(a ** b); // Power: 78125
+
+// Float operations
+float x;
+x := 3.14;
+float y;
+y := 2.71;
+print(x + y);  // 5.85
+print(x * y);  // 8.5094
+print(x / y);  // 1.15866
+
+// Mixed numeric operations
+print(a + x);  // Int + Float: 8.14
+print(b * y);  // Int * Float: 18.97
+print(x / b);  // Float / Int: 0.44857
+
+// Boolean operations
+bool p;
+p := true;
+bool q;
+q := false;
+print(p && q); // AND: false
+print(p || q); // OR: true
+print(!p);     // NOT: false
+print(p ^ q);  // XOR: true
+
+// Comparison operations
+print(a < b);   // Less than: true
+print(a <= b);  // Less than or equal: true
+print(a > b);   // Greater than: false
+print(a >= b);  // Greater than or equal: false
+print(a == b);  // Equal: false
+print(a != b);  // Not equal: true
+print(x == 3.14); // Float equality: true
+
+// Mathematical functions
+print(abs(-5));      // Absolute value of int: 5
+print(abs(-2.5));    // Absolute value of float: 2.5
+print(sqrt(16));     // Square root: 4.0
+print(sqrt(2.25));   // Square root: 1.5
+
+// ===================== VECTORS =====================
+print(2000);  // Section marker for vectors
+
+// Vector creation
+vector v1;
+v1 := [1, 2, 3, 4, 5];
+print(v1);
+
+// Vector dimension
+int d;
+d := dim(v1);
+print(d);  // Should be 5
+
+// Vector indexing
+print(v1[0]);  // First element: 1
+print(v1[d-1]); // Last element: 5
+
+// Vector element assignment
+v1[2] := 10;
+print(v1);  // [1, 2, 10, 4, 5]
+
+// Vector with mixed types
+vector v_mixed;
+v_mixed := [1, 2.5, 3, 4.5, 5];
+print(v_mixed);
+
+// Vector arithmetic
+vector v2;
+v2 := [5, 4, 3, 2, 1];
+print(v1 + v2);  // [6, 6, 13, 6, 6]
+print(v1 - v2);  // [-4, -2, 7, 2, 4]
+
+// Scalar multiplication
+print(v1 * 2);   // [2, 4, 20, 8, 10]
+print(0.5 * v2); // [2.5, 2.0, 1.5, 1.0, 0.5]
+
+// Vector operations
+print(v1 dot v2);  // Dot product: 5*1 + 4*2 + 3*10 + 2*4 + 1*5 = 5+8+30+8+5 = 56
+print(mag(v1));      // Magnitude: sqrt(1² + 2² + 10² + 4² + 5²) = sqrt(146) ≈ 12.08
+
+// Vector angle
+vector unit_x;
+unit_x := [1, 0, 0];
+vector unit_y;
+unit_y := [0, 1, 0];
+print(angle(unit_x, unit_y));  // π/2 radians (90 degrees)
+
+// ===================== MATRICES =====================
+print(3000);  // Section marker for matrices
+
+// Matrix creation
+matrix m1;
+m1 := [[1, 2, 3], [4, 5, 6], [7, 8, 9]];
+print(m1);
+
+// Matrix dimensions
+print(dim(m1));  // Total elements: 9
+
+// Matrix indexing
+print(m1[0][0]);  // First element: 1
+print(m1[2][2]);  // Last element: 9
+
+// Matrix row access
+vector row;
+row := m1[1];
+print(row);  // [4, 5, 6]
+
+// Matrix element assignment
+m1[1][1] := 10;
+print(m1);  // [[1, 2, 3], [4, 10, 6], [7, 8, 9]]
+
+// Matrix arithmetic
+matrix m2;
+m2 := [[9, 8, 7], [6, 5, 4], [3, 2, 1]];
+print(m1 + m2);  // [[10, 10, 10], [10, 15, 10], [10, 10, 10]]
+print(m1 - m2);  // [[-8, -6, -4], [-2, 5, 2], [4, 6, 8]]
+
+// Scalar multiplication
+print(m1 * 2);    // [[2, 4, 6], [8, 20, 12], [14, 16, 18]]
+print(0.5 * m2);  // [[4.5, 4.0, 3.5], [3.0, 2.5, 2.0], [1.5, 1.0, 0.5]]
+
+// Matrix-matrix multiplication
+matrix ma;
+ma := [[1, 2], [3, 4]];
+matrix mb;
+mb := [[5, 6], [7, 8]];
+matrix mc;
+mc := ma * mb;  // [[19, 22], [43, 50]]
+print(mc);
+
+// Matrix-vector multiplication
+vector v;
+v := [1, 2];
+vector result;
+result := ma * v;  // [1*1 + 2*2, 3*1 + 4*2] = [5, 11]
+print(result);
+
+// Vector-matrix multiplication
+print(v * ma);  // [1*1 + 2*3, 1*2 + 2*4] = [7, 10]
+
+// Matrix operations
+print(trans(m1));  // Transpose
+print(trace(m1));  // Trace (sum of diagonal): 1+10+9 = 20
+
+// Matrix determinant
+matrix det_test;
+det_test := [[4, 7], [2, 6]];
+print(det(det_test));  // 4*6 - 7*2 = 24-14 = 10
+
+// Matrix inverse
+print(inverse(det_test));  // [[0.6, -0.7], [-0.2, 0.4]]
+
+// Identity matrix
+matrix identity;
+identity := [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+print(identity);
+
+// Verify A * A^-1 = I (approximately)
+matrix verify_inv;
+verify_inv := det_test * inverse(det_test);
+print(verify_inv);  // Should be close to [[1, 0], [0, 1]]
+
+// ===================== CONTROL FLOW =====================
+print(4000);  // Section marker for control flow
+
+// If-else statements
+int test;
+test := 10;
+
+if (test > 5) {
+    print(1);  // Condition is true
+} else {
+    print(0);
+}
+
+// Nested if-else (proper way to do if-else-if)
+if (test > 15) {
+    print(1);
+} else {
+    if (test > 5) {
+        print(2);  // This condition is true
+    } else {
+        print(3);
+    }
+}
+
+// For loops
+int sum;
+sum := 0;
+int i;
+
+for (i := 1; i <= 5; i := i + 1) {
+    sum := sum + i;
+    print(i);
+}
+print(sum);  // Should be 15
+
+// While loops
+int j;
+j := 5;
+print(9999);  // Countdown marker
+while (j > 0) {
+    print(j);
+    j := j - 1;
+}
+
+// Nested loops
+print(8888);  // Multiplication table marker
+for (i := 1; i <= 3; i := i + 1) {
+    for (j := 1; j <= 3; j := j + 1) {
+        print(i * j);
+    }
+}
+
+// ===================== ALGORITHM EXAMPLE =====================
+print(5000);  // Section marker for algorithm
+
+// Computing eigenvalues of a 2x2 matrix
+matrix m;
+m := [[3, 2], [1, 4]];
+
+// Calculate trace and determinant
+float tr;
+float det_val;
+tr := trace(m);
+det_val := det(m);
+
+// For a 2x2 matrix, eigenvalues = (tr ± sqrt(tr² - 4*det))/2
+float discriminant;
+discriminant := tr*tr - 4.0*det_val;
+
+float lambda1;
+float lambda2;
+if (discriminant >= 0.0) {
+    lambda1 := (tr + sqrt(discriminant)) / 2.0;
+    lambda2 := (tr - sqrt(discriminant)) / 2.0;
+    print(lambda1);  // Should be approx. 5
+    print(lambda2);  // Should be approx. 2
+} else {
+    print(0);  // Signal complex eigenvalues
+}
+
+// Verify that the product of eigenvalues equals the determinant
+float prod_eigenvalues;
+prod_eigenvalues := lambda1 * lambda2;
+print(prod_eigenvalues);  // Should equal det_val (10)
+print(det_val);
