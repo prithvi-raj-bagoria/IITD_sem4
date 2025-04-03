@@ -1,46 +1,257 @@
-// Vector operations test cases
+// Advanced vector operations and algorithms
 
-// Vector creation and access
-vector v1 := [1, 2, 3, 4, 5];
-v1[2]:=3;
-print(v1);
-print(v1[2]);  // Should print 3 (0-indexed)
+// ========================== VECTOR OPERATIONS ==========================
 
-// Vector operations
-vector v2 := [5, 4, 3, 2, 1];
-vector v_sum := v1 + v2;  // [6, 6, 6, 6, 6]
-print(v_sum);
+// a) Vector Addition and Subtraction
+print(1000);  // Major section marker for vector arithmetic
 
-vector v_diff := v1 - v2;  // [-4, -2, 0, 2, 4]
-print(v_diff);
+vector u_vec;
+vector v_vec;
+vector sum_vectors;
+vector diff_vectors;
 
-// Scalar operations
-vector v_scaled := v1 * 2;  // [2, 4, 6, 8, 10]
-print(v_scaled);
+// Initialize example vectors
+u_vec := [2, 4, 6];
+v_vec := [1, 3, 5];
 
-// Vector dot product
-float dot_prod := v1 dot v2;  // 1*5 + 2*4 + 3*3 + 4*2 + 5*1 = 35
-print(dot_prod);
+// Perform vector operations
+sum_vectors := u_vec + v_vec;
+diff_vectors := u_vec - v_vec;
 
-// Vector magnitude
-float mag_v1 := mag(v1);  // sqrt(1² + 2² + 3² + 4² + 5²) = sqrt(55)
-print(mag_v1);
+print(u_vec);
+print(v_vec);
+print(sum_vectors);  // Should output [3, 7, 11]
+print(diff_vectors); // Should output [1, 1, 1]
 
-// Vector angle
-float angle_v1_v2 := angle(v1, v2);
-print(angle_v1_v2);
+// b) Vector Scalar Multiplication
+print(2000);  // Major section marker for scalar multiplication
 
-// Vector dimension
-int dim_v1 := dim(v1);  // 5
-print(dim_v1);
+vector scaled_vector;
+float scalar_val;
+scalar_val := 2.5;
 
-// Mixed vector operations
-vector v3 := [2, 4, 6];
-vector v4 := [1, 2, 3];
-float expr1 := mag(v3 - v4);  // magnitude of [1, 2, 3], should be sqrt(14)
-print(expr1);
+scaled_vector := scalar_val * u_vec;  // Using built-in operator
+print(u_vec);
+print(scalar_val);
+print(scaled_vector);  // Should output [5.0, 10.0, 15.0]
 
-// Complex vector expressions
-vector zeros := [0, 0, 0];
-vector complex_v := v3 + v4 * 2 - v3;  // [2, 4, 6] + [2, 4, 6] - [1, 2, 3] = [3, 6, 9]
-print(complex_v);
+// c) Vector Magnitude (Length)
+print(3000);  // Major section marker for vector magnitude
+
+float magnitude_val;
+magnitude_val := mag(u_vec);  // Using built-in mag function
+
+print(u_vec);
+print(magnitude_val);  // Should output sqrt(56) ≈ 7.48
+
+// d) Unit Vector (Normalization)
+print(4000);  // Major section marker for normalization
+
+vector unit_vec;
+// Calculate manually since there's no direct normalize function
+unit_vec := (1.0 / mag(u_vec)) * u_vec;
+
+print(u_vec);
+print(unit_vec);  // Should be u/|u|, a unit vector in direction of u
+print(mag(unit_vec));  // Should be very close to 1.0
+
+// e) Dot Product
+print(5000);  // Major section marker for dot product
+
+float dot_product_result;
+dot_product_result := u_vec dot v_vec;
+
+print(u_vec);
+print(v_vec);
+print(dot_product_result);  // Should output 2*1 + 4*3 + 6*5 = 44
+
+// f) Angle Between Vectors
+print(6000);  // Major section marker for angle calculation
+
+float angle_between_vecs;
+angle_between_vecs := angle(u_vec, v_vec);
+
+print(u_vec);
+print(v_vec);
+print(angle_between_vecs);  // Should output angle in radians
+
+// g) Vector Projection
+print(7000);  // Major section marker for vector projection
+
+// Projection of v onto u: proj_u(v) = (v·u/u·u) * u
+float projection_scalar_val;
+vector projection_result;
+
+projection_scalar_val := (v_vec dot u_vec) / (u_vec dot u_vec);
+projection_result := projection_scalar_val * u_vec;
+
+print(u_vec);
+print(v_vec);
+print(projection_result);  // Projection of v onto u
+
+// h) Vector Rejection
+print(8000);  // Major section marker for vector rejection
+
+// Rejection: v - projection
+vector rejection_result;
+rejection_result := v_vec - projection_result;
+
+print(rejection_result);  // Rejection of v from u
+// Verify: dot product with u should be very close to 0
+print(rejection_result dot u_vec);  // Should be very small (numerical precision issues)
+
+// i) Orthogonal Vectors
+print(9000);  // Major section marker for orthogonal vectors
+
+// Create two orthogonal vectors
+vector ortho_vec1;
+vector ortho_vec2;
+ortho_vec1 := [1, 0, 0];
+ortho_vec2 := [0, 1, 0];
+
+// Verify orthogonality
+print(ortho_vec1);
+print(ortho_vec2);
+print(ortho_vec1 dot ortho_vec2);  // Should be 0 for orthogonal vectors
+
+// j) Gram-Schmidt Orthogonalization
+print(10000);  // Major section marker for Gram-Schmidt process
+
+// Start with 3 vectors
+vector gs_a1;
+vector gs_a2;
+vector gs_a3;
+gs_a1 := [1, 1, 1];  // First vector
+gs_a2 := [1, 2, 0];  // Second vector
+gs_a3 := [2, 1, 0];  // Third vector
+
+// Compute orthogonal vectors
+vector gs_b1;
+vector gs_b2;
+vector gs_b3;
+
+// b1 = a1
+gs_b1 := gs_a1;
+
+// b2 = a2 - proj_b1(a2)
+float gs_proj1;
+gs_proj1 := (gs_a2 dot gs_b1) / (gs_b1 dot gs_b1);
+gs_b2 := gs_a2 - gs_proj1 * gs_b1;
+
+// b3 = a3 - proj_b1(a3) - proj_b2(a3)
+float gs_proj2;
+float gs_proj3;
+gs_proj2 := (gs_a3 dot gs_b1) / (gs_b1 dot gs_b1);
+gs_proj3 := (gs_a3 dot gs_b2) / (gs_b2 dot gs_b2);
+gs_b3 := gs_a3 - gs_proj2 * gs_b1 - gs_proj3 * gs_b2;
+
+// Print orthogonal vectors
+print(gs_b1);
+print(gs_b2); 
+print(gs_b3);
+
+// Verify orthogonality by checking dot products
+print(gs_b1 dot gs_b2);  // Should be close to 0
+print(gs_b1 dot gs_b3);  // Should be close to 0
+print(gs_b2 dot gs_b3);  // Should be close to 0
+
+// k) Distance Between Points
+print(11000);  // Major section marker for distance calculation
+
+vector point_a;
+vector point_b;
+point_a := [1, 2, 3];
+point_b := [4, 5, 6];
+
+// Calculate Euclidean distance
+vector point_diff;
+point_diff := point_a - point_b;
+float dist_result;
+dist_result := mag(point_diff);
+
+print(point_a);
+print(point_b);
+print(dist_result);  // Should be sqrt(27) ≈ 5.2
+
+// l) Vector Algorithms: Finding Closest Point
+print(12000);  // Major section marker for closest point algorithm
+
+// Find closest point to target from a set of points
+vector target_point;
+target_point := [2, 2, 2];
+
+// Array of candidate points
+vector cp_p1;
+vector cp_p2;
+vector cp_p3;
+vector cp_p4;
+cp_p1 := [1, 0, 0];
+cp_p2 := [0, 3, 0];
+cp_p3 := [0, 0, 4];
+cp_p4 := [3, 3, 3];
+
+// Calculate distances
+float cp_d1;
+float cp_d2;
+float cp_d3;
+float cp_d4;
+cp_d1 := mag(target_point - cp_p1);
+cp_d2 := mag(target_point - cp_p2);
+cp_d3 := mag(target_point - cp_p3);
+cp_d4 := mag(target_point - cp_p4);
+
+print(cp_d1);
+print(cp_d2);
+print(cp_d3);
+print(cp_d4);
+
+// Find minimum distance and corresponding point
+float cp_min_dist;
+int cp_closest;
+
+cp_min_dist := cp_d1;
+cp_closest := 1;
+
+if (cp_d2 < cp_min_dist) {
+    cp_min_dist := cp_d2;
+    cp_closest := 2;
+}
+
+if (cp_d3 < cp_min_dist) {
+    cp_min_dist := cp_d3;
+    cp_closest := 3;
+}
+
+if (cp_d4 < cp_min_dist) {
+    cp_min_dist := cp_d4;
+    cp_closest := 4;
+}
+
+print(cp_closest);  // Index of closest point
+print(cp_min_dist);       // Minimum distance
+
+// m) Vector Iteration: Convergence by Vector Norm
+print(13000);  // Major section marker for iterative algorithm
+
+// Start with a vector and repeatedly scale it until its magnitude is small
+vector conv_vec;
+conv_vec := [1.0, 1.0, 1.0];
+float scale_factor_val;
+scale_factor_val := 0.5;  // Scale by half each time
+float thresh_val;
+thresh_val := 0.1;     // Target threshold for magnitude
+
+int iter_count;
+iter_count := 0;
+
+// Using the condition in the while loop itself rather than break
+while (mag(conv_vec) > thresh_val && iter_count < 10) {
+    conv_vec := scale_factor_val * conv_vec;
+    iter_count := iter_count + 1;
+    
+    // Print current state
+    print(iter_count);
+    print(mag(conv_vec));
+}
+
+print(conv_vec);  // Final vector after convergence

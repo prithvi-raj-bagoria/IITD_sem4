@@ -1,49 +1,244 @@
-// Matrix operations test cases
+// Advanced matrix operations based on the pseudocode examples
 
-// Matrix creation
-matrix m1 := [[1, 2, 3], [4, 5, 6], [7, 8, 9]];
-print(m1);
+// ========================== MATRIX OPERATIONS ==========================
 
-// Matrix element access
-print(m1[0][0]);  // 1
-print(m1[1][2]);  // 6
+// a) Matrix Sum
+print(1000);  // Major section marker for matrix addition
 
-// Matrix trace
-float tr := trace(m1);  // 1 + 5 + 9 = 15
-print(tr);
+matrix A;
+matrix B;
+matrix add_matrices;
 
-// Matrix transpose
-matrix m1_t := trans(m1);
-print(m1_t);  // [[1, 4, 7], [2, 5, 8], [3, 6, 9]]
-print(m1_t[0][1]);  // Should be 4
+// Initialize example matrices
+A := [[1, 2], [3, 4]];
+B := [[5, 6], [7, 8]];
 
-// Matrix determinant
-matrix m2 := [[1, 2], [3, 4]];
-float det_m2 := det(m2);  // 1*4 - 2*3 = -2
-print(det_m2);
+// Perform matrix addition using your builtin + operator
+add_matrices := A + B;
 
-// Matrix addition
-matrix m3 := [[2, 0], [1, 3]];
-matrix m_sum := m2 + m3;  // [[3, 2], [4, 7]]
-print(m_sum);
+print(A);
+print(B);
+print(add_matrices);  // Should output [[6, 8], [10, 12]]
 
-// Matrix subtraction
-matrix m_diff := m2 - m3;  // [[-1, 2], [2, 1]]
-print(m_diff);
+// b) Matrix Transpose
+print(2000);  // Major section marker for matrix transpose
 
-// Matrix multiplication
-matrix m_prod := m2 * m3;  // [[4, 6], [10, 12]]
-print(m_prod);
+matrix transpose_matrix;
+transpose_matrix := trans(A);
 
-// Matrix scalar operations
-matrix m_scaled := m2 * 2;  // [[2, 4], [6, 8]]
-print(m_scaled);
+print(A);
+print(transpose_matrix);  // Should output [[1, 3], [2, 4]]
 
-// Matrix dimension
-int rows := dim(m1);  // 3
-print(rows);
+// c) Matrix Determinant
+print(3000);  // Major section marker for determinant
 
-// Complex matrix expressions
-matrix m4 := [[1, 0], [0, 1]];
-matrix complex_m := m2 + m3 * 2 - m4;  // [[1, 2], [3, 4]] + [[4, 0], [2, 6]] - [[1, 0], [0, 1]] = [[4, 2], [5, 9]]
-print(complex_m);
+float determinant_of_matrix;
+determinant_of_matrix := det(A);
+
+print(A);
+print(determinant_of_matrix);  // Should output -2
+
+// d) Matrix Inverse with Control Flow
+print(4000);  // Major section marker for matrix inverse
+
+matrix inverse_of_matrix;
+
+// Check if matrix is invertible
+if (det(A) != 0) {
+    inverse_of_matrix := inverse(A);
+    print(inverse_of_matrix);  // Should output [[-2, 1], [1.5, -0.5]]
+    
+    // Verify A * A^-1 = I
+    matrix identity_check;
+    identity_check := A * inverse_of_matrix;
+    print(identity_check);  // Should be close to [[1, 0], [0, 1]]
+} else {
+    print(0);  // Indicator that matrix is not invertible
+}
+
+// Test with a singular matrix
+matrix singular_matrix;
+singular_matrix := [[1, 2], [2, 4]];  // Determinant is 0
+print(singular_matrix);
+
+if (det(singular_matrix) != 0) {
+    print(inverse(singular_matrix));
+} else {
+    print(0);  // Indicator that matrix is not invertible
+}
+
+// e) Matrix Multiplication
+print(5000);  // Major section marker for matrix multiplication
+
+matrix multiply_matrices;
+multiply_matrices := A * B;
+
+print(A);
+print(B);
+print(multiply_matrices);  // Should output [[19, 22], [43, 50]]
+
+// f) Matrix and Vector Product
+print(6000);  // Major section marker for matrix-vector product
+
+vector x_vec;
+x_vec := [1, 2];
+vector multiply_vector_matrix;
+multiply_vector_matrix := A * x_vec;  // Using built-in operator
+
+print(A);
+print(x_vec);
+print(multiply_vector_matrix);  // Should output [5, 11]
+
+// g) Gaussian Elimination (Ax = b) using matrix inverse
+print(7000);  // Major section marker for solving linear equations
+
+vector b_vec;
+b_vec := [5, 11];
+vector solution;
+
+if (det(A) != 0) {
+    matrix A_inverse;
+    A_inverse := inverse(A);
+    solution := A_inverse * b_vec;
+    print(solution);  // Should output [1, 2]
+    
+    // Verify A * x = b
+    vector verification;
+    verification := A * solution;
+    print(verification);  // Should output [5, 11]
+} else {
+    print(0);  // Indicator that system has no unique solution
+}
+
+// h) Eigenvalues (2x2 Matrix)
+print(8000);  // Major section marker for eigenvalues
+
+matrix eigenvalue_matrix;
+eigenvalue_matrix := [[3, 2], [1, 4]];
+
+float a_val;
+float b_val;
+float c_val; 
+float d_val;
+a_val := eigenvalue_matrix[0][0];
+b_val := eigenvalue_matrix[0][1];
+c_val := eigenvalue_matrix[1][0];
+d_val := eigenvalue_matrix[1][1];
+
+float matrix_trace;
+float matrix_det;
+matrix_trace := trace(eigenvalue_matrix);  // a + d
+matrix_det := det(eigenvalue_matrix);      // a*d - b*c
+
+// Characteristic polynomial: λ² - trace·λ + det = 0
+float discriminant;
+discriminant := matrix_trace * matrix_trace - 4.0 * matrix_det;
+
+float eigenvalue1;
+float eigenvalue2;
+
+if (discriminant >= 0.0) {
+    eigenvalue1 := (matrix_trace + sqrt(discriminant)) / 2.0;
+    eigenvalue2 := (matrix_trace - sqrt(discriminant)) / 2.0;
+    print(eigenvalue1);
+    print(eigenvalue2);
+} else {
+    print(0);  // Indicator for complex eigenvalues
+}
+
+// i) For Loop Sum of Rows
+print(9000);  // Major section marker for vector summation
+
+int n_rows;
+n_rows := 5;  // Number of rows
+matrix V;
+V := [[1, 2, 3],
+      [4, 5, 6],
+      [7, 8, 9],
+      [10, 11, 12],
+      [13, 14, 15]];
+
+vector vector_sum;
+vector_sum := [0, 0, 0];
+int i_sum;
+
+for (i_sum := 0; i_sum < n_rows; i_sum := i_sum + 1) {
+    // Extract row i as a vector
+    vector row_vec;
+    row_vec := V[i_sum];
+    vector_sum := vector_sum + row_vec;
+}
+
+print(vector_sum);  // Should output [35, 40, 45]
+
+// j) Magnitude of Matrix (Frobenius norm)
+print(10000);  // Major section marker for matrix magnitude
+
+matrix magnitude_matrix;
+magnitude_matrix := [[1, 2, 3], [4, 5, 6]];
+float sum_of_squares;
+sum_of_squares := 0.0;
+int rows;
+int cols;
+rows := 2;  // For our 2x3 example matrix
+cols := 3;
+
+// Sum squares of all elements
+int i_mag;
+for (i_mag := 0; i_mag < rows; i_mag := i_mag + 1) {
+    int j_mag;
+    for (j_mag := 0; j_mag < cols; j_mag := j_mag + 1) {
+        sum_of_squares := sum_of_squares + magnitude_matrix[i_mag][j_mag] * magnitude_matrix[i_mag][j_mag];
+    }
+}
+
+float magnitude_of_matrix;
+magnitude_of_matrix := sqrt(sum_of_squares);
+print(magnitude_of_matrix);  // Should output sqrt(91) ≈ 9.539
+
+// k) While Loop
+print(11000);  // Major section marker for while loop
+
+matrix convergence_matrix;
+convergence_matrix := [[0.5, 0], [0, 0.5]];
+float threshold;
+threshold := 0.01;
+float norm_diff;
+norm_diff := 1.0;  // Starting value above threshold
+
+int iterations;
+iterations := 0;
+
+// Replaced break with condition in the while loop
+while (norm_diff > threshold && iterations < 11) {
+    // Calculate current magnitude
+    float sum_squares_conv;
+    sum_squares_conv := 0.0;
+    int i_conv;
+    for (i_conv := 0; i_conv < 2; i_conv := i_conv + 1) {
+        int j_conv;
+        for (j_conv := 0; j_conv < 2; j_conv := j_conv + 1) {
+            sum_squares_conv := sum_squares_conv + convergence_matrix[i_conv][j_conv] * convergence_matrix[i_conv][j_conv];
+        }
+    }
+    
+    float current_magnitude;
+    current_magnitude := sqrt(sum_squares_conv);
+    
+    // Update matrix
+    convergence_matrix := convergence_matrix * convergence_matrix;
+    
+    // Update convergence check
+    norm_diff := current_magnitude - threshold;
+    
+    // Keep track of iterations
+    iterations := iterations + 1;
+    
+    // Print current state
+    print(iterations);
+    print(current_magnitude);
+    print(norm_diff);
+
+}
+
+print(convergence_matrix);  // Should be very close to zero matrix

@@ -1,0 +1,109 @@
+// Test file for demonstrating input/output functionality
+
+// ===================== BASIC OUTPUT =====================
+print(1000);  // Section marker
+
+// Print different data types
+print(42);                  // Integer output
+print(3.14159);             // Float output
+print(true);                // Boolean output
+print([1, 2, 3]);           // Vector output
+print([[1, 2], [3, 4]]);    // Matrix output
+
+// Printing expressions
+print(2 + 3 * 4);           // Arithmetic expression
+print([1, 2, 3] + [4, 5, 6]); // Vector addition
+
+// ===================== INTERACTIVE INPUT =====================
+print(2000);  // Section marker
+
+// Reading a scalar value from stdin
+// When prompted, enter a number followed by semicolon (e.g., "42;")
+print(101);  // "Enter a scalar value:"
+float scalar_input;
+scalar_input := input();
+print(scalar_input);
+
+// Reading a vector from stdin
+// When prompted, enter format: "3 [1, 2, 3];" (dimension followed by vector)
+print(102);  // "Enter a vector:"
+vector vector_input;
+vector_input := input();
+print(vector_input);
+
+// Reading a matrix from stdin
+// When prompted, enter format: "2,2 [[1,2],[3,4]];" (rows,cols followed by matrix)
+print(103);  // "Enter a matrix:"
+matrix matrix_input;
+matrix_input := input();
+print(matrix_input);
+
+// ===================== FILE INPUT =====================
+print(3000);  // Section marker
+
+// For these tests to work, you need to create these data files with appropriate content
+
+// Reading values from files - you'll need to create these files with appropriate content
+// Reading a scalar from a file
+float file_scalar_val;
+file_scalar_val := input(tests/float_data.txt);
+print(file_scalar_val);
+
+// Reading a vector from a file
+vector file_vector_val;
+file_vector_val := input(tests/vector_data.txt);
+print(file_vector_val);
+
+// Reading a matrix from a file
+matrix file_matrix_val;
+file_matrix_val := input(tests/matrix_data.txt);
+print(file_matrix_val);
+
+// ===================== PROCESSING INPUT =====================
+print(4000);  // Section marker
+
+// Example: Read a vector, calculate its magnitude, and display
+print(201);  // "Enter a vector for magnitude calculation:"
+vector input_vec_calc;
+input_vec_calc := input();
+float mag_result;
+mag_result := mag(input_vec_calc);
+print(mag_result);
+
+// Example: Read a matrix, compute its determinant and trace
+print(202);  // "Enter a square matrix:"
+matrix input_mat_calc;
+input_mat_calc := input();
+float det_result;
+det_result := det(input_mat_calc);
+print(det_result);
+float trace_result;
+trace_result := trace(input_mat_calc);
+print(trace_result);
+
+// Example: Solve a linear system Ax = b
+print(203);  // "Linear system solver (Ax = b)"
+print(204);  // "Enter matrix A:"
+matrix input_mat_A;
+input_mat_A := input();
+print(205);  // "Enter vector b:"
+vector input_vec_b;
+input_vec_b := input();
+
+// Solve using inverse: x = A^-1 * b
+float det_A;
+det_A := det(input_mat_A);
+if (det_A != 0) {
+    vector solution_x;
+    solution_x := inverse(input_mat_A) * input_vec_b;
+    print(206);  // "Solution x:"
+    print(solution_x);
+    
+    // Verify: A * x = b
+    print(207);  // "Verification A*x:"
+    vector verification_result;
+    verification_result := input_mat_A * solution_x;
+    print(verification_result);
+} else {
+    print(0);  // Indicator that matrix is not invertible
+}
