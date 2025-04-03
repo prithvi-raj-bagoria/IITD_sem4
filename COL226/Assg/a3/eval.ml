@@ -392,32 +392,99 @@ let matrix_vector_multiply m v =
           VectorVal result
   | _ -> runtime_error "Matrix-vector multiplication requires matrix and vector" None
 
-(* Read matrix from file *)
-let read_matrix_from_file filename =
-  try
-    let ic = open_in filename in
-    let rec read_lines acc =
-      try
-        let line = input_line ic in
-        let values = String.split_on_char ' ' line 
-                    |> List.filter (fun s -> s <> "") 
-                    |> List.map (fun s -> 
-                         try IntVal (int_of_string s)
-                         with Failure _ -> FloatVal (float_of_string s)) in
-        read_lines (values :: acc)
-      with End_of_file -> 
-        close_in ic;
-        List.rev acc in
-    let matrix = read_lines [] in
-    if matrix = [] then
-      runtime_error "Empty file or no valid numbers found" None
-    else if List.exists (fun row -> List.length row <> List.length (List.hd matrix)) matrix then
-      runtime_error "Inconsistent row lengths in matrix file" None
+(* Helper to split a string by character *)
+let split_on_char sep s =
+  let rec aux i j acc =
+    if j >= String.length s then
+      if i = j then List.rev acc 
+      else List.rev (String.sub s i (j-i) :: acc)
+    else if s.[j] = sep then
+      aux (j+1) (j+1) (String.sub s i (j-i) :: acc)
     else
-      MatrixVal matrix
-  with
-  | Sys_error msg -> runtime_error msg None
-  | Failure msg -> runtime_error msg None
+      aux i (j+1) acc
+  in aux 0 0 []
+
+let parse_input s =
+  (* Handle possible newlines by converting to spaces *)
+  let s = String.map (fun c -> if c = '\n' then ' ' else c) s |> String.trim in
+  let tokens = List.filter (fun t -> t <> "") (split_on_char ' ' s) in
+  
+  match tokens with
+  | [tok] ->  (* Scalar: 42, 3.14, true *)
+      (try IntVal (int_of_string tok)
+       with Failure _ ->
+         try FloatVal (float_of_string tok)
+         with Failure _ ->
+           if tok = "true" then BoolVal true
+           else if tok = "false" then BoolVal false
+           else runtime_error ("Invalid input: " ^ tok) None)
+
+           | [dim_str; mat_str] when String.contains dim_str ',' ->  (* Matrix: 2,2 [[1,2],[3,4]] *)
+           (* Split the dimensions by comma *)
+           let dims = split_on_char ',' dim_str in
+           if List.length dims <> 2 then
+             runtime_error "Matrix dimensions must be rows,cols" None
+           else
+             let rows = int_of_string (List.nth dims 0) in
+             let cols = int_of_string (List.nth dims 1) in
+             
+             (* Parse the matrix string *)
+             if mat_str.[0] <> '[' || mat_str.[String.length mat_str - 1] <> ']' then
+               runtime_error "Matrix must be enclosed in []" None;
+             
+             (* Extract rows between brackets *)
+             let inner = String.sub mat_str 1 (String.length mat_str - 2) in
+             
+             (* Parse rows using a more robust method *)
+             let row_strings = ref [] in
+             let curr_row = ref "" in
+             let in_row = ref false in
+             
+             for i = 0 to String.length inner - 1 do
+               match inner.[i] with
+               | '[' -> in_row := true; curr_row := ""
+               | ']' -> 
+                   if !in_row then begin
+                     in_row := false;
+                     row_strings := !curr_row :: !row_strings
+                   end
+               | c when !in_row -> curr_row := !curr_row ^ String.make 1 c
+               | _ -> ()
+             done;
+             
+             let row_strings = List.rev !row_strings in
+             
+             if List.length row_strings <> rows then
+               runtime_error "Matrix row count mismatch" None
+             else
+               MatrixVal (List.map (fun row_str ->
+                 let elems = List.map String.trim (split_on_char ',' row_str) in
+                 if List.length elems <> cols then
+                   runtime_error "Matrix column count mismatch" None
+                 else
+                   List.map (fun elem ->
+                     try IntVal (int_of_string elem)
+                     with Failure _ -> FloatVal (float_of_string elem)
+                   ) elems
+               ) row_strings)
+
+  | [len; vec_str] ->  (* Vector: 2 [1,2] *)
+      let len = int_of_string len in
+      if vec_str.[0] <> '[' || vec_str.[String.length vec_str - 1] <> ']' then
+        runtime_error "Vector must be enclosed in []" None;
+        
+      let inner = String.sub vec_str 1 (String.length vec_str - 2) in
+      let elems = List.map String.trim (split_on_char ',' inner) in
+      
+      if List.length elems <> len then
+        runtime_error "Vector length mismatch" None
+      else
+        VectorVal (List.map (fun tok ->
+          try IntVal (int_of_string tok)
+          with Failure _ -> FloatVal (float_of_string tok)
+        ) elems)
+        
+  | _ -> runtime_error "Invalid input format" None
 
 (* Main evaluation functions *)
 let rec eval_expr expr env =
@@ -554,9 +621,40 @@ let rec eval_expr expr env =
       compute_determinant v
   
   | Input opt ->
-      (match opt with
-      | filename ->  read_matrix_from_file filename)
-  
+    (match opt with
+     | "" ->  (* When no input string is provided *)
+     print_string "Enter (end with ;): ";
+     flush stdout;
+     
+     (* Read character by character until semicolon *)
+     let buffer = Buffer.create 100 in
+     let rec read_until_semicolon () =
+       let c = input_char stdin in
+       if c = ';' then 
+         Buffer.contents buffer
+       else begin
+         Buffer.add_char buffer c;
+         read_until_semicolon ()
+       end
+     in
+     
+     let input_str = 
+       try read_until_semicolon () 
+       with End_of_file -> Buffer.contents buffer
+     in
+     
+     parse_input input_str
+     | s ->
+       (* Check if s is a filename and read its content *)
+       try
+         let ic = open_in s in
+         let content = really_input_string ic (in_channel_length ic) in
+         close_in ic;
+         parse_input content
+       with Sys_error _ ->
+         (* If not a valid file, treat the string as direct input *)
+        raise (RuntimeError ("Invalid input file : " ^ s, None)))
+    
   | Print e ->
       let v = eval_expr e env in
       print_endline (string_of_value v);
