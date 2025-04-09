@@ -1,50 +1,48 @@
 (* krivine.ml - Extended Implementation of Krivine machine for call-by-name lambda calculus *)
 
-(* Boolean type *)
-type myBool = True | False
-
 (* Extended lambda calculus expressions *)
-type expr = 
-  | Var of string              (* Variable x *)
-  | Abs of string * expr       (* Lambda abstraction λx.e *)
-  | App of expr * expr         (* Application (e1 e2) *)
+type variable = string
+type lamexp = 
+  | V of variable              (* Variable x *)
+  | Lam of variable * lamexp   (* Lambda abstraction λx.e *)
+  | App of lamexp * lamexp     (* Application (e1 e2) *)
   | Num of int                 (* Integer constant *)
-  | Bl of myBool               (* Boolean constant *)
-  | Plus of expr * expr        (* Addition e1 + e2 *)
-  | Times of expr * expr       (* Multiplication e1 * e2 *)
-  | And of expr * expr         (* Logical AND e1 && e2 *)
-  | Or of expr * expr          (* Logical OR e1 || e2 *)
-  | Not of expr                (* Logical NOT !e *)
-  | Eq of expr * expr          (* Equality test e1 == e2 *)
-  | Gt of expr * expr          (* Greater than e1 > e2 *)
-  | IfTE of expr * expr * expr (* If-then-else if e1 then e2 else e3 *)
-  | Let of string * expr * expr (* Let expression: let x = e1 in e2 *)
+  | Bl of bool               (* Boolean constant *)
+  | Plus of lamexp * lamexp    (* Addition e1 + e2 *)
+  | Times of lamexp * lamexp   (* Multiplication e1 * e2 *)
+  | And of lamexp * lamexp     (* Logical AND e1 && e2 *)
+  | Or of lamexp * lamexp      (* Logical OR e1 || e2 *)
+  | Not of lamexp              (* Logical NOT !e *)
+  | Eq of lamexp * lamexp      (* Equality test e1 == e2 *)
+  | Gt of lamexp * lamexp      (* Greater than e1 > e2 *)
+  | IfTE of lamexp * lamexp * lamexp (* If-then-else if e1 then e2 else e3 *)
+  | Let of variable * lamexp * lamexp (* Let expression: let x = e1 in e2 *)
 
 (* String representation of expressions for debugging *)
-let rec string_of_expr = function
-  | Var x -> x
-  | Abs (x, e) -> "λ" ^ x ^ "." ^ string_of_expr e
-  | App (e1, e2) -> "(" ^ string_of_expr e1 ^ " " ^ string_of_expr e2 ^ ")"
+let rec string_of_lamexp = function
+  | V x -> x
+  | Lam (x, e) -> "λ" ^ x ^ "." ^ string_of_lamexp e
+  | App (e1, e2) -> "(" ^ string_of_lamexp e1 ^ " " ^ string_of_lamexp e2 ^ ")"
   | Num n -> string_of_int n
-  | Bl True -> "true"
-  | Bl False -> "false"
-  | Plus (e1, e2) -> "(" ^ string_of_expr e1 ^ " + " ^ string_of_expr e2 ^ ")"
-  | Times (e1, e2) -> "(" ^ string_of_expr e1 ^ " * " ^ string_of_expr e2 ^ ")"
-  | And (e1, e2) -> "(" ^ string_of_expr e1 ^ " && " ^ string_of_expr e2 ^ ")"
-  | Or (e1, e2) -> "(" ^ string_of_expr e1 ^ " || " ^ string_of_expr e2 ^ ")"
-  | Not e -> "!" ^ string_of_expr e
-  | Eq (e1, e2) -> "(" ^ string_of_expr e1 ^ " == " ^ string_of_expr e2 ^ ")"
-  | Gt (e1, e2) -> "(" ^ string_of_expr e1 ^ " > " ^ string_of_expr e2 ^ ")"
-  | IfTE (e1, e2, e3) -> "if " ^ string_of_expr e1 ^ " then " ^ 
-                         string_of_expr e2 ^ " else " ^ string_of_expr e3
-  | Let (x, e1, e2) -> "let " ^ x ^ " = " ^ string_of_expr e1 ^ " in " ^ string_of_expr e2
+  | Bl true -> "true"
+  | Bl false -> "false"
+  | Plus (e1, e2) -> "(" ^ string_of_lamexp e1 ^ " + " ^ string_of_lamexp e2 ^ ")"
+  | Times (e1, e2) -> "(" ^ string_of_lamexp e1 ^ " * " ^ string_of_lamexp e2 ^ ")"
+  | And (e1, e2) -> "(" ^ string_of_lamexp e1 ^ " && " ^ string_of_lamexp e2 ^ ")"
+  | Or (e1, e2) -> "(" ^ string_of_lamexp e1 ^ " || " ^ string_of_lamexp e2 ^ ")"
+  | Not e -> "!" ^ string_of_lamexp e
+  | Eq (e1, e2) -> "(" ^ string_of_lamexp e1 ^ " == " ^ string_of_lamexp e2 ^ ")"
+  | Gt (e1, e2) -> "(" ^ string_of_lamexp e1 ^ " > " ^ string_of_lamexp e2 ^ ")"
+  | IfTE (e1, e2, e3) -> "if " ^ string_of_lamexp e1 ^ " then " ^ 
+                         string_of_lamexp e2 ^ " else " ^ string_of_lamexp e3
+  | Let (x, e1, e2) -> "let " ^ x ^ " = " ^ string_of_lamexp e1 ^ " in " ^ string_of_lamexp e2
 
 (* Mutually recursive closure and environment types *)
-type closure = Closure of expr * gamma
-and gamma = (string * closure) list
+type closure = Closure of lamexp * gamma
+and gamma = (variable * closure) list
 
 (* Debug mode - set to true for verbose output *)
-let debug_mode = ref true
+let debug_mode = ref false
 let step_count = ref 0
 
 (* String representation of a closure - concise version *)
@@ -52,7 +50,7 @@ let rec string_of_closure (Closure(e, gamma)) =
   let env_vars = if List.length gamma > 0 then 
                    "{" ^ String.concat "," (List.map (fun (x, _) -> x) gamma) ^ "}"
                  else "{}" in
-  Printf.sprintf "%s %s" (string_of_expr e) env_vars
+  Printf.sprintf "%s %s" (string_of_lamexp e) env_vars
 
 (* String representation of a stack - shortened *)
 let string_of_stack stack =
@@ -87,7 +85,7 @@ let eval_binary_bool_op op cl1 cl2 =
 let eval_comparison_op op cl1 cl2 =
   let n1 = get_num_value cl1 in
   let n2 = get_num_value cl2 in
-  Closure(Bl (if op n1 n2 then True else False), [])
+  Closure(Bl (if op n1 n2 then true else false), [])
 
 (* Krivine machine evaluation function with improved debug output and extended operations *)
 let rec krivine (focus_closure, stack) =
@@ -99,7 +97,7 @@ let rec krivine (focus_closure, stack) =
   end;
   
   match focus_closure with
-  | Closure(Var x, gamma) ->
+  | Closure(V x, gamma) ->
       if !debug_mode then Printf.printf "⟹ VAR: Looking up '%s'\n" x;
       (match List.assoc_opt x gamma with
        | Some cl -> 
@@ -112,19 +110,19 @@ let rec krivine (focus_closure, stack) =
   | Closure(App(e1, e2), gamma) ->
       if !debug_mode then begin
         Printf.printf "⟹ APP: Pushing argument and focusing on function\n";
-        Printf.printf "   • Push: %s\n" (string_of_expr e2);
-        Printf.printf "   • Focus: %s\n" (string_of_expr e1);
+        Printf.printf "   • Push: %s\n" (string_of_lamexp e2);
+        Printf.printf "   • Focus: %s\n" (string_of_lamexp e1);
       end;
       let arg_closure = Closure(e2, gamma) in
       krivine (Closure(e1, gamma), arg_closure :: stack)
   
-  | Closure(Abs(x, body), gamma) ->
+  | Closure(Lam(x, body), gamma) ->
       (match stack with
       | arg_cl :: rest_stack ->
           if !debug_mode then begin
             Printf.printf "⟹ APPLY: Function application\n";
             Printf.printf "   • Bind: '%s' to argument\n" x;
-            Printf.printf "   • Body: %s\n" (string_of_expr body);
+            Printf.printf "   • Body: %s\n" (string_of_lamexp body);
           end;
           let new_gamma = (x, arg_cl) :: gamma in
           krivine (Closure(body, new_gamma), rest_stack)
@@ -140,7 +138,7 @@ let rec krivine (focus_closure, stack) =
       
   | Closure(Bl b, _) ->
       (* Boolean constants evaluate to themselves *)
-      if !debug_mode then Printf.printf "⟹ CONST: Boolean value %s\n" (if b = True then "true" else "false");
+      if !debug_mode then Printf.printf "⟹ CONST: Boolean value %s\n" (if b = true then "true" else "false");
       (focus_closure, stack)
   
   | Closure(Plus(e1, e2), gamma) ->
@@ -166,9 +164,9 @@ let rec krivine (focus_closure, stack) =
       let e1_cl = Closure(e1, gamma) in
       let (v1, _) = krivine (e1_cl, []) in
       let b1 = get_bool_value v1 in
-      if b1 = False then
+      if b1 = false then
         (* Short-circuit evaluation *)
-        krivine (Closure(Bl False, []), stack)
+        krivine (Closure(Bl false, []), stack)
       else
         let e2_cl = Closure(e2, gamma) in
         let (v2, _) = krivine (e2_cl, []) in
@@ -179,9 +177,9 @@ let rec krivine (focus_closure, stack) =
       let e1_cl = Closure(e1, gamma) in
       let (v1, _) = krivine (e1_cl, []) in
       let b1 = get_bool_value v1 in
-      if b1 = True then
+      if b1 = true then
         (* Short-circuit evaluation *)
-        krivine (Closure(Bl True, []), stack)
+        krivine (Closure(Bl true, []), stack)
       else
         let e2_cl = Closure(e2, gamma) in
         let (v2, _) = krivine (e2_cl, []) in
@@ -192,7 +190,7 @@ let rec krivine (focus_closure, stack) =
       let e_cl = Closure(e, gamma) in
       let (v, _) = krivine (e_cl, []) in
       let b = get_bool_value v in
-      let result = Closure(Bl (if b = True then False else True), []) in
+      let result = Closure(Bl (if b = true then false else true), []) in
       krivine (result, stack)
   
   | Closure(Eq(e1, e2), gamma) ->
@@ -218,7 +216,7 @@ let rec krivine (focus_closure, stack) =
       let e1_cl = Closure(e1, gamma) in
       let (v1, _) = krivine (e1_cl, []) in
       let b = get_bool_value v1 in
-      if b = True then
+      if b = true then
         let e2_cl = Closure(e2, gamma) in
         krivine (e2_cl, stack)
       else
@@ -228,8 +226,8 @@ let rec krivine (focus_closure, stack) =
   | Closure(Let(x, e1, e2), gamma) ->
       if !debug_mode then begin
         Printf.printf "⟹ LET: Binding '%s' to expression\n" x;
-        Printf.printf "   • Expr: %s\n" (string_of_expr e1);
-        Printf.printf "   • Body: %s\n" (string_of_expr e2);
+        Printf.printf "   • Expr: %s\n" (string_of_lamexp e1);
+        Printf.printf "   • Body: %s\n" (string_of_lamexp e2);
       end;
       (* In call-by-name Krivine machine, we don't evaluate e1, just bind it as a closure *)
       let e1_closure = Closure(e1, gamma) in
@@ -239,15 +237,15 @@ let rec krivine (focus_closure, stack) =
 (* Unload function to convert closure to lambda term *)
 let rec unload (Closure(e, gamma)) =
   match e with
-  | Var x ->
+  | V x ->
       (match List.assoc_opt x gamma with
        | Some cl -> unload cl (* Closure associated to var x in gamma *)
-       | None -> Var x)       (* Free variable remains as is *)
+       | None -> V x)       (* Free variable remains as is *)
   
-  | Abs(x, body) ->
+  | Lam(x, body) ->
       (* To avoid variable capture, remove x from env when unloading body *)
       let gamma' = List.remove_assoc x gamma in
-      Abs(x, unload (Closure(body, gamma')))
+      Lam(x, unload (Closure(body, gamma')))
   
   | App(e1, e2) ->
       App(unload (Closure(e1, gamma)), unload (Closure(e2, gamma)))
@@ -273,7 +271,7 @@ let cbn expr =
   if !debug_mode then begin
     reset_step_counter();
     Printf.printf "\n════════════════════════════════════════\n";
-    Printf.printf "EVALUATING: %s\n" (string_of_expr expr);
+    Printf.printf "EVALUATING: %s\n" (string_of_lamexp expr);
     Printf.printf "════════════════════════════════════════\n";
   end;
   let initial_state = (Closure(expr, []), []) in
@@ -281,7 +279,7 @@ let cbn expr =
   let result = unload(final_closure) in
   if !debug_mode then begin
     Printf.printf "\n════════════════════════════════════════\n";
-    Printf.printf "FINAL RESULT: %s\n" (string_of_expr result);
+    Printf.printf "FINAL RESULT: %s\n" (string_of_lamexp result);
     Printf.printf "════════════════════════════════════════\n\n";
   end;
   result
@@ -289,42 +287,35 @@ let cbn expr =
 (* Run tests with optional debug mode toggle *)
 let run_test ?(debug=false) name expr =
   Printf.printf "\n===== TEST: %s =====\n" name;
-  Printf.printf "Expression: %s\n" (string_of_expr expr);
-  
-  (* Temporarily set debug mode for this test if requested *)
-  let old_debug = !debug_mode in
-  if debug then
-    debug_mode := true;
+  Printf.printf "Expression: %s\n" (string_of_lamexp expr);
   
   let result = cbn expr in
-  Printf.printf "Result: %s\n" (string_of_expr result);
+  Printf.printf "Result: %s\n" (string_of_lamexp result);
   
-  (* Restore previous debug setting *)
-  debug_mode := old_debug;
   Printf.printf "\n";;
 
 
-let id_exp = Abs ("x", Var "x")
+let id_exp = Lam ("x", V "x")
 let test_expr1 = App (id_exp, id_exp)
 
 (* Test 2: (λx. (λy. (x + y))) (λx. x)
-   Representing x + y as App(App(Var "+", Var "x"), Var "y")
+   Representing x + y as Plus(V "x", V "y") now
 *)
-let func_exp = Abs ("x", Abs ("y", App(App(Var "+", Var "x"), Var "y")))
+let func_exp = Lam ("x", Lam ("y", Plus(V "x", V "y")))
 let test_expr2 = App (func_exp, id_exp)
 
 (* Test 3: Constant function
    Define const = (λx. (λy. x))
    When applied to two arguments (both id), it should yield id.
 *)
-let const_exp = Abs ("x", Abs ("y", Var "x"))
+let const_exp = Lam ("x", Lam ("y", V "x"))
 let test_expr3 = App (App (const_exp, id_exp), id_exp)
 
 (* Test 4: Composition function
    Define compose = (λf. (λg. (λx. f (g x))))
    When applied as (compose id id id), it should yield id.
 *)
-let compose_exp = Abs ("f", Abs ("g", Abs ("x", App (Var "f", App (Var "g", Var "x")))))
+let compose_exp = Lam ("f", Lam ("g", Lam ("x", App (V "f", App (V "g", V "x")))))
 let test_expr4 = App (App (App (compose_exp, id_exp), id_exp), id_exp)
 
 let () = 

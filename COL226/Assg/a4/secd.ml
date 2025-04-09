@@ -1,8 +1,5 @@
 (* secd.ml - Implementation of SECD machine for call-by-name lambda calculus *)
 
-(* Boolean type *)
-type bool = True | False
-
 (* Lambda calculus expressions *)
 type variable = string
 type lamexp =
@@ -53,8 +50,8 @@ let rec string_of_lamexp = function
   | Lam (x, e) -> "λ" ^ x ^ "." ^ string_of_lamexp e
   | App (e1, e2) -> "(" ^ string_of_lamexp e1 ^ " " ^ string_of_lamexp e2 ^ ")"
   | Num n -> string_of_int n
-  | Bl True -> "true"
-  | Bl False -> "false"
+  | Bl true -> "true"
+  | Bl false -> "false"
   | Plus (e1, e2) -> "(" ^ string_of_lamexp e1 ^ " + " ^ string_of_lamexp e2 ^ ")"
   | Times (e1, e2) -> "(" ^ string_of_lamexp e1 ^ " * " ^ string_of_lamexp e2 ^ ")"
   | And (e1, e2) -> "(" ^ string_of_lamexp e1 ^ " && " ^ string_of_lamexp e2 ^ ")"
@@ -85,7 +82,7 @@ let rec compile e =
   
 let rec string_of_value = function
   | IntVal n -> string_of_int n
-  | BoolVal b -> if b = True then "true" else "false"
+  | BoolVal b -> if b = true then "true" else "false"
   | Clos (_, _, _, orig) -> string_of_lamexp orig
 
 (* Add substitution function *)
@@ -120,7 +117,7 @@ let rec unload_value = function
 (* The SECD machine state: (Stack, Environment, Control, Dump) *)
 type state = value list * gamma * opcode list * (value list * gamma * opcode list) list
 
-let debug_mode = ref true
+let debug_mode = ref false
 let step_count = ref 0
 
 let print_state (s, e, c, d) =
@@ -171,32 +168,32 @@ let rec secd_machine state =
       | AND ->
           (match s with
            | BoolVal b2 :: BoolVal b1 :: s' ->
-               secd_machine (BoolVal (if b1 = True && b2 = True then True else False) :: s', e, c, d)
+               secd_machine (BoolVal (if b1 = true && b2 = true then true else false) :: s', e, c, d)
            | _ -> raise (Secd_Error "AND expects two booleans"))
       | OR ->
           (match s with
            | BoolVal b2 :: BoolVal b1 :: s' ->
-               secd_machine (BoolVal (if b1 = True || b2 = True then True else False) :: s', e, c, d)
+               secd_machine (BoolVal (if b1 = true || b2 = true then true else false) :: s', e, c, d)
            | _ -> raise (Secd_Error "OR expects two booleans"))
       | NOT ->
           (match s with
            | BoolVal b :: s' ->
-               secd_machine (BoolVal (if b = True then False else True) :: s', e, c, d)
+               secd_machine (BoolVal (if b = true then false else true) :: s', e, c, d)
            | _ -> raise (Secd_Error "NOT expects one boolean"))
       | EQ ->
           (match s with
            | IntVal n2 :: IntVal n1 :: s' ->
-               secd_machine (BoolVal (if n1 = n2 then True else False) :: s', e, c, d)
+               secd_machine (BoolVal (if n1 = n2 then true else false) :: s', e, c, d)
            | _ -> raise (Secd_Error "EQ expects two integers"))
       | GT ->
           (match s with
            | IntVal n2 :: IntVal n1 :: s' ->
-               secd_machine (BoolVal (if n1 > n2 then True else False) :: s', e, c, d)
+               secd_machine (BoolVal (if n1 > n2 then true else false) :: s', e, c, d)
            | _ -> raise (Secd_Error "GT expects two integers"))
       | IFTE (ct, cf) ->
           (match s with
            | BoolVal b :: s' ->
-               if b = True then
+               if b = true then
                  secd_machine (s', e, ct @ c, d)
                else
                  secd_machine (s', e, cf @ c, d)
@@ -232,24 +229,27 @@ let secd expr =
   let instructions = compile expr in
   let result = secd_machine ([], [], instructions, []) in
   let unloaded = unload_value result in
+  
+  (* Debug mode specific output *)
   if !debug_mode then (
     Printf.printf "\n════════════════════════════════════════\n";
-    Printf.printf "SECD FINAL RESULT: %s\n" (string_of_value result);
+    Printf.printf "SECD DEBUG INFO:\n";
     Printf.printf "SECD UNLOADED RESULT: %s\n" (string_of_lamexp unloaded);
     Printf.printf "════════════════════════════════════════\n\n";
   );
+  
+  (* Always print the result, regardless of debug mode *)
+  Printf.printf "RESULT: %s\n" (string_of_value result);
+  
   result
 
 (* Run tests with optional debug mode toggle *)
-let run_test ?(debug=true) name expr =
+let run_test ?(debug=false) name expr =
   Printf.printf "\n===== TEST: %s =====\n" name;
   Printf.printf "Expression: %s\n" (string_of_lamexp expr);
   
-  let old_debug = !debug_mode in
-  debug_mode := debug;
   
   let _ = secd expr in
-  debug_mode := old_debug;
   Printf.printf "\n";;
 
 (* Global test definitions *)
