@@ -309,7 +309,10 @@ let run_test ?(debug=false) name expr =
 
 (*---------TESTS------------*)
 
-(*-LEXICAL SCOPING-*)
+(*-----------------
+LEXICAL SCOPING
+------------------*)
+
 (* Test 1: Variable Shadowing *)
 
 (* "let x = 10 in let f = λy.λx.(x + y) in ((f 5) 20)" *)
@@ -333,7 +336,36 @@ let hof_test =
       Let("g", Lam("y", Plus(V "x", V "y")),
         App(App(V "apply", V "g"), Num(5)))))
 
-(*-CBN v/s CBV-*)
+(* Test 4: Deep nesting with multiple captured variables *)
+(*"let x = 1 in let y = 2 in let z = 3 in let f = λa.(((a + x) + y) + z) in (f 4)" *)
+let deep_nesting_test =
+  Let("x", Num(1),
+    Let("y", Num(2),
+      Let("z", Num(3),
+        Let("f", Lam("a", Plus(Plus(Plus(V "a", V "x"), V "y"), V "z")),
+          App(V "f", Num(4))))))
+
+(* Test 5: Shadowing variables in nested scopes *)
+(* "let x = 1 in let f = λx.(x + 10) in let g = λy.let x = 100 in ((f y) + x) in (g 5)" *)
+let multi_shadow_test =
+  Let("x", Num(1),
+    Let("f", Lam("x", Plus(V "x", Num(10))),
+      Let("g", Lam("y", 
+            Let("x", Num(100),
+              Plus(App(V "f", V "y"), V "x"))),
+        App(V "g", Num(5)))))
+
+(* Test 6: Function returning function with captured variables *)
+(*"let x = 10 in let makeAdder = λy.λz.((x + y) + z) in let add15 = (makeAdder 5) in (add15 20)" *)
+let curried_closure_test =
+  Let("x", Num(10),
+    Let("makeAdder", Lam("y", Lam("z", Plus(Plus(V "x", V "y"), V "z"))),
+      Let("add15", App(V "makeAdder", Num(5)),
+        App(V "add15", Num(20)))))
+
+(*---------------
+CBN v/s CBV
+----------------*)
 
 (* Test 1: Divergent Computation in Unused Argument 
    In call-by-name: Should return 5
@@ -356,7 +388,7 @@ let multiple_eval_test =
 
 (* Test 3: Conditional with Potentially Divergent Computation
    In call-by-name: Only evaluates the then branch
-   In call-by-value: evaluate only branches
+   In call-by-value: evaluate one branches
 *)
 (*"if true then 5 else ((λx.(x x)) (λx.(x x)))" *)
 let cond_divergent_test =
@@ -366,7 +398,30 @@ let cond_divergent_test =
     App(Lam("x", App(V "x", V "x")), Lam("x", App(V "x", V "x")))
   )
 
-(*--CHURCH ENCODINGS--*)
+(* Test 4: Lazy evaluation advantage - avoiding expensive calculations *)
+(*"let expensive = (999999 * 999999) in let ignore_arg = λx.42 in (ignore_arg expensive)" *)
+let lazy_eval_test =
+  Let("expensive", Times(Num(999999), Num(999999)), 
+    Let("ignore_arg", Lam("x", Num(42)),
+      App(V "ignore_arg", V "expensive")))
+
+(* Test 5: Multiple use of potentially side-effecting expression *)
+(*"let identity = λx.x in let duplicate = λx.((identity x) + (identity x)) in (duplicate (1 + 2))" *)
+let multiple_use_test =
+  Let("identity", Lam("x", V "x"),
+    Let("duplicate", Lam("x", Plus(App(V "identity", V "x"), App(V "identity", V "x"))),
+      App(V "duplicate", Plus(Num(1), Num(2)))))
+
+(* Test 6: Thunking to simulate call-by-name in a call-by-value context *)
+(*"let apply_to_zero = λf.(f 0) in let thunk = λ_.(5 + 3) in (apply_to_zero thunk)" *)
+let thunking_test =
+  Let("apply_to_zero", Lam("f", App(V "f", Num(0))),
+    Let("thunk", Lam("_", Plus(Num(5), Num(3))),
+      App(V "apply_to_zero", V "thunk")))
+
+(*------------------
+CHURCH ENCODINGS
+--------------------*)
 (* Church numerals *)
 let church_zero = Lam("f", Lam("x", V "x")) (* "λf.λx.x" *)
 
@@ -436,5 +491,25 @@ let church_divergent_test =
     App(Lam("x", App(V "x", V "x")), Lam("x", App(V "x", V "x"))) (* Omega - divergent term *)
   )
 
+(*-----------
+HOF
+------------*)
+
+(* Test 1: Complex nested let expressions with shadowing *)
+(* "let x = 10 in let f = λx.(x + 1) in let g = λy.((f y) + x) in (g 5)" *)
+let nested_let_test =
+  Let("x", Num(10),
+    Let("f", Lam("x", Plus(V "x", Num(1))),
+      Let("g", Lam("y", Plus(App(V "f", V "y"), V "x")),
+        App(V "g", Num(5)))))
+
+
+(* Test 2: Combining higher-order functions with Church encoding *)
+(* "let apply_twice = λf.λx.(f (f x)) in let add_one = λx.(x + 1) in ((apply_twice add_one) 10)" *)
+let hof_church_test =
+  Let("apply_twice", Lam("f", Lam("x", App(V "f", App(V "f", V "x")))),
+    Let("add_one", Lam("x", Plus(V "x", Num(1))),
+      App(App(V "apply_twice", V "add_one"), Num(10))))
+
 let () = 
-  run_test "" church_divergent_test;
+  run_test "" thunking_test;
