@@ -1,4 +1,4 @@
-(* secd.ml - Implementation of SECD machine for call-by-name lambda calculus *)
+(* secd.ml - Implementation of SECD machine for call-by-value lambda calculus *)
 
 (* Lambda calculus expressions *)
 type variable = string
@@ -73,7 +73,7 @@ let rec compile e =
   | V x -> [LOOKUP x]
   | Num n -> [CONST n]
   | Bl b -> [BOOL b]
-  | Lam (x, body) -> [MkCLOS (x, compile body, Lam(x, body))]
+  | Lam (x, body) -> [MkCLOS (x, (compile body) @ [RET], Lam(x, body))] 
   | App (e1, e2) -> (compile e1) @ (compile e2) @ [APP]
   | Plus (e1, e2) -> (compile e1) @ (compile e2) @ [PLUS]
   | Times (e1, e2) -> (compile e1) @ (compile e2) @ [TIMES]
@@ -111,41 +111,63 @@ let rec substitute expr var replacement =
 
 (* Normalize Church numerals and expressions *)
 let rec normalize_church expr =
+  (* Beta-reduce expressions - apply functions to arguments *)
+  let rec beta_reduce expr =
+    match expr with
+    | App(Lam(x, body), arg) -> 
+        beta_reduce (substitute body x arg)
+    | App(e1, e2) -> 
+        let e1' = beta_reduce e1 in
+        let e2' = beta_reduce e2 in
+        (match e1' with
+         | Lam(x, body) -> beta_reduce (App(e1', e2'))
+         | _ -> App(e1', e2'))
+    | Lam(x, body) -> Lam(x, beta_reduce body)
+    | _ -> expr
+  in
+
+  (* Convert to canonical Church numeral form *)
+let rec church_normalize expr =
   match expr with
   | Lam(f, Lam(x, body)) ->
-      let count = count_church_apps f x body in
-      if count >= 0 then
-        let rec build n = if n = 0 then V x else App(V f, build (n-1)) in
-        Lam(f, Lam(x, build count))
+      (* Check if this is a Church numeral form *)
+      let apps = count_nested_apps f x body in
+      if apps >= 0 then
+        (* Construct canonical Church numeral with 'apps' applications of f *)
+        let rec build n = 
+          if n = 0 then V x 
+          else App(V f, build (n-1)) 
+        in
+        Lam(f, Lam(x, build apps))
       else
-        Lam(f, Lam(x, normalize_church body))
-      
-  | App(e1, e2) -> 
-      let n1 = normalize_church e1 in
-      let n2 = normalize_church e2 in
-      (match n1 with
-      | Lam(x, body) -> normalize_church (substitute body x n2)
-      | _ -> App(n1, n2))
-  
-  | Plus(e1, e2) -> Plus(normalize_church e1, normalize_church e2)
-  | Times(e1, e2) -> Times(normalize_church e1, normalize_church e2)
-  | And(e1, e2) -> And(normalize_church e1, normalize_church e2)
-  | Or(e1, e2) -> Or(normalize_church e1, normalize_church e2)
-  | Not(e) -> Not(normalize_church e)
-  | Eq(e1, e2) -> Eq(normalize_church e1, normalize_church e2)
-  | Gt(e1, e2) -> Gt(normalize_church e1, normalize_church e2)
-  | IfTE(e1, e2, e3) -> IfTE(normalize_church e1, normalize_church e2, normalize_church e3)
-  | Let(x, e1, e2) -> Let(x, normalize_church e1, normalize_church e2)
+        (* Not a Church numeral, normalize recursively *)
+        Lam(f, Lam(x, church_normalize body))
+  | App(e1, e2) -> App(church_normalize e1, church_normalize e2)
   | _ -> expr
+in
 
-(* Helper: Count applications of f to x in body *)
-and count_church_apps f x expr =
-  match expr with
-  | V var when var = x -> 0
-  | App(V var, rest) when var = f -> 
-      let n = count_church_apps f x rest in
-      if n >= 0 then n + 1 else -1
-  | _ -> -1  (* Not a Church numeral *)
+(* Apply beta reduction, then Church normalization *)
+let beta_reduced = beta_reduce expr in
+church_normalize beta_reduced
+
+(* Count nested applications of a function to find Church numeral value *)
+and count_nested_apps f x expr =
+  let rec count expr depth =
+    match expr with
+    | V var when var = x -> depth
+    | App(V var, e) when var = f -> count e (depth + 1)
+    | App(App(_, _) as fun_expr, arg) ->
+        (* Try to recognize more complex application patterns *)
+        let fun_val = count fun_expr 0 in
+        if fun_val >= 0 then
+          let arg_val = count arg 0 in
+          if arg_val >= 0 then
+            fun_val + arg_val + depth
+          else -1
+        else -1
+    | _ -> -1  (* Not a Church numeral pattern *)
+  in
+  count expr 0
 
 (* Modify unload_value to include Church numeral normalization *)
 let rec unload_value = function
@@ -182,7 +204,8 @@ let rec secd_machine state =
        | v::_ -> v
        | [] -> raise (Secd_Error "Empty stack at termination"))
   | (s, e, [], (s', e', c')::d') ->
-      secd_machine (List.hd s :: s', e, c', d')
+      (* We shouldn't reach here now that we have explicit RET instructions *)
+      raise (Secd_Error "Control list empty but dump not empty - missing RET instruction")
   | (s, e, instr::c, d) ->
       begin match instr with
       | LOOKUP x ->
@@ -252,10 +275,10 @@ let rec secd_machine state =
            | _ -> raise (Secd_Error "APP expects a closure and an argument on stack"))
       | RET ->
           (match s with
-           | v :: s' ->
+           | v :: _ ->  (* Only need the top value, discard the rest of the local stack *)
                (match d with
                 | (s'', e'', c'') :: d' ->
-                    secd_machine (v :: s'', e'', c'', d')
+                    secd_machine (v :: s'', e'', c'', d')  (* Push result to caller's stack *)
                 | _ -> raise (Secd_Error "RET expects a non-empty dump"))
            | _ -> raise (Secd_Error "RET expects a value on stack"))
       end
@@ -283,3 +306,135 @@ let run_test ?(debug=false) name expr =
   let _ = secd expr in
   
   Printf.printf "\n";;
+
+(*---------TESTS------------*)
+
+(*-LEXICAL SCOPING-*)
+(* Test 1: Variable Shadowing *)
+
+(* "let x = 10 in let f = λy.λx.(x + y) in ((f 5) 20)" *)
+let shadow_test =
+  Let("x", Num(10),
+    Let("f", Lam("y", Lam("x", Plus(V "x", V "y"))),
+      App(App(V "f", Num(5)), Num(20))))
+
+(* Test 2: Nested Function with Captured Variable *)
+(*"let x = 10 in let f = λy.λz.((x + y) + z) in ((f 5) 3)" *)
+let closure_test =
+  Let("x", Num(10),
+    Let("f", Lam("y", Lam("z", Plus(Plus(V "x", V "y"), V "z"))),
+      App(App(V "f", Num(5)), Num(3))))
+
+(* Test 3: Higher-Order Function with Lexical Scoping *)
+(* "let x = 10 in let apply = λf.λa.(f a) in let g = λy.(x + y) in ((apply g) 5)" *)
+let hof_test =
+  Let("x", Num(10),
+    Let("apply", Lam("f", Lam("a", App(V "f", V "a"))),
+      Let("g", Lam("y", Plus(V "x", V "y")),
+        App(App(V "apply", V "g"), Num(5)))))
+
+(*-CBN v/s CBV-*)
+
+(* Test 1: Divergent Computation in Unused Argument 
+   In call-by-name: Should return 5
+   In call-by-value: Should diverge (not terminate)
+*)
+(*"let omega = ((λx.(x x)) (λx.(x x))) in let constfn = λx.λy.x in ((constfn 5) omega)" *)
+let divergent_test =
+  Let("omega", App(Lam("x", App(V "x", V "x")), Lam("x", App(V "x", V "x"))),
+    Let("constfn", Lam("x", Lam("y", V "x")),
+      App(App(V "constfn", Num(5)), V "omega")))
+
+(* Test 2: Multiple Evaluation of Arguments
+   In call-by-name: The argument is evaluated on each use (twice)
+   In call-by-value: The argument is evaluated once
+*)
+(*"let double = λf.((f 0) + (f 0)) in (double λ_.(1 + 1))" *)
+let multiple_eval_test =
+  Let("double", Lam("f", Plus(App(V "f", Num(0)), App(V "f", Num(0)))),
+    App(V "double", Lam("_", Plus(Num(1), Num(1)))))
+
+(* Test 3: Conditional with Potentially Divergent Computation
+   In call-by-name: Only evaluates the then branch
+   In call-by-value: evaluate only branches
+*)
+(*"if true then 5 else ((λx.(x x)) (λx.(x x)))" *)
+let cond_divergent_test =
+  IfTE(
+    Bl(true),
+    Num(5),
+    App(Lam("x", App(V "x", V "x")), Lam("x", App(V "x", V "x")))
+  )
+
+(*--CHURCH ENCODINGS--*)
+(* Church numerals *)
+let church_zero = Lam("f", Lam("x", V "x")) (* "λf.λx.x" *)
+
+let church_succ = Lam("n", Lam("f", Lam("x", App(V "f", App(App(V "n", V "f"), V "x"))))) (*"λn.λf.λx.(f ((n f) x))" *)
+
+let church_one = App(church_succ, church_zero) (*"((λn.λf.λx.(f ((n f) x))) λf.λx.x)" *)
+
+let church_two = App(church_succ, church_one) (*"((λn.λf.λx.(f ((n f) x))) ((λn.λf.λx.(f ((n f) x))) λf.λx.x))" *)
+
+let church_three = App(church_succ, church_two)
+
+(* Church addition - same implementation as Krivine *)
+let church_plus =
+  Lam("m", Lam("n", Lam("f", Lam("x", 
+    App(App(V "m", V "f"), App(App(V "n", V "f"), V "x")))))) (*"λm.λn.λf.λx.((m f) ((n f) x))" *)
+
+(* Church multiplication - same implementation as Krivine *)
+let church_mult =
+  Lam("m", Lam("n", Lam("f", 
+    App(V "m", App(V "n", V "f"))))) (*"λm.λn.λf.(m (n f))" *)
+
+(* Church boolean values *)
+let church_true = Lam("t", Lam("f", V "t")) (*"λt.λf.t" *)
+
+let church_false = Lam("t", Lam("f", V "f")) (*"λt.λf.f" *)
+
+(* If-then-else using Church booleans *)
+let church_if = Lam("p", Lam("a", Lam("b", App(App(V "p", V "a"), V "b")))) (*"λp.λa.λb.((p a) b)" *)
+
+(* Is-zero predicate - still need the inline version for call-by-value *)
+let church_is_zero = 
+  Lam("n", 
+    App(
+      App(
+        V "n", 
+        Lam("_", Lam("t", Lam("f", V "f")))  (* Inline of church_false *)
+      ), 
+      Lam("t", Lam("f", V "t"))  (* Inline of church_true *)
+    )
+  ) 
+
+(* Test 1: Addition of Church numerals (1+2) *)
+let church_add_test =
+  App(App(church_plus, church_one), church_two)
+
+(* Test 2: Multiplication of Church numerals (2*3) *)
+let church_mult_test = 
+  App(App(church_mult, church_two), church_three)
+
+(* Test 3: Is-zero predicate test - using Church conditionals *)
+let church_is_zero_test =
+  App(
+    App(
+      App(church_if, App(church_is_zero, church_zero)),  (* If zero is zero (should be true) *)
+      church_one                                      (* Then return 1 - using Church numeral *)
+    ),
+    church_two                                        (* Else return 2 - using Church numeral *)
+  )
+
+(* Test: Divergent argument not used in call-by-name, but causes issues in call-by-value *)
+let church_divergent_test =
+  App(
+    App(
+      App(church_if, church_true),
+      church_one
+    ),
+    App(Lam("x", App(V "x", V "x")), Lam("x", App(V "x", V "x"))) (* Omega - divergent term *)
+  )
+
+let () = 
+  run_test "" church_divergent_test;

@@ -42,7 +42,7 @@ type closure = Closure of lamexp * gamma
 and gamma = (variable * closure) list
 
 (* Debug mode - set to true for verbose output *)
-let debug_mode = ref false
+let debug_mode = ref true
 let step_count = ref 0
 
 (* String representation of a closure - concise version *)
@@ -340,3 +340,120 @@ let cbn expr =
   let (final_closure, _) = krivine initial_state in
   let result = unload(final_closure) in
   result
+
+(* Run tests with optional debug mode toggle *)
+let run_test ?(debug=false) name expr =
+  Printf.printf "\n===== TEST: %s =====\n" name;
+  Printf.printf "Expression: %s\n" (string_of_lamexp expr);
+  
+  let result = cbn expr in
+  Printf.printf "Result: %s\n" (string_of_lamexp result);
+  
+  Printf.printf "\n";;
+
+(*---------TESTS------------*)
+
+(*-LEXICAL SCOPING-*)
+(* Test 1: Variable Shadowing *)
+
+(* "let x = 10 in let f = λy.λx.(x + y) in ((f 5) 20)" *)
+let shadow_test =
+  Let("x", Num(10),
+    Let("f", Lam("y", Lam("x", Plus(V "x", V "y"))),
+      App(App(V "f", Num(5)), Num(20))))
+
+(* Test 2: Nested Function with Captured Variable *)
+(*"let x = 10 in let f = λy.λz.((x + y) + z) in ((f 5) 3)" *)
+let closure_test =
+  Let("x", Num(10),
+    Let("f", Lam("y", Lam("z", Plus(Plus(V "x", V "y"), V "z"))),
+      App(App(V "f", Num(5)), Num(3))))
+
+(* Test 3: Higher-Order Function with Lexical Scoping *)
+(* "let x = 10 in let apply = λf.λa.(f a) in let g = λy.(x + y) in ((apply g) 5)" *)
+let hof_test =
+  Let("x", Num(10),
+    Let("apply", Lam("f", Lam("a", App(V "f", V "a"))),
+      Let("g", Lam("y", Plus(V "x", V "y")),
+        App(App(V "apply", V "g"), Num(5)))))
+
+(*-CBN v/s CBV-*)
+
+(* Test 1: Divergent Computation in Unused Argument 
+   In call-by-name: Should return 5
+   In call-by-value: Should diverge (not terminate)
+*)
+(*"let omega = ((λx.(x x)) (λx.(x x))) in let constfn = λx.λy.x in ((constfn 5) omega)" *)
+let divergent_test =
+  Let("omega", App(Lam("x", App(V "x", V "x")), Lam("x", App(V "x", V "x"))),
+    Let("constfn", Lam("x", Lam("y", V "x")),
+      App(App(V "constfn", Num(5)), V "omega")))
+
+(* Test 2: Multiple Evaluation of Arguments
+   In call-by-name: The argument is evaluated on each use (twice)
+   In call-by-value: The argument is evaluated once
+*)
+(*"let double = λf.((f 0) + (f 0)) in (double λ_.(1 + 1))" *)
+let multiple_eval_test =
+  Let("double", Lam("f", Plus(App(V "f", Num(0)), App(V "f", Num(0)))),
+    App(V "double", Lam("_", Plus(Num(1), Num(1)))))
+
+(* Test 3: Conditional with Potentially Divergent Computation
+   In call-by-name: Only evaluates the then branch
+   In call-by-value: evaluate one branches
+*)
+(*"if true then 5 else ((λx.(x x)) (λx.(x x)))" *)
+let cond_divergent_test =
+  IfTE(
+    Bl(true),
+    Num(5),
+    App(Lam("x", App(V "x", V "x")), Lam("x", App(V "x", V "x")))
+  )
+
+(*--CHURCH ENCODINGS--*)
+(* Church numerals *)
+let church_zero = Lam("f", Lam("x", V "x")) (* "λf.λx.x" *)
+
+let church_succ = Lam("n", Lam("f", Lam("x", App(V "f", App(App(V "n", V "f"), V "x"))))) (*"λn.λf.λx.(f ((n f) x))" *)
+
+let church_one = App(church_succ, church_zero) (*"((λn.λf.λx.(f ((n f) x))) λf.λx.x)" *)
+
+let church_two = App(church_succ, church_one) (*"((λn.λf.λx.(f ((n f) x))) ((λn.λf.λx.(f ((n f) x))) λf.λx.x))" *)
+
+let church_three = App(church_succ, church_two)
+
+(* Church addition *)
+let church_plus =
+  Lam("m", Lam("n", Lam("f", Lam("x", 
+    App(App(V "m", V "f"), App(App(V "n", V "f"), V "x")))))) (*"λm.λn.λf.λx.((m f) ((n f) x))" *)
+
+(* Church multiplication *)
+let church_mult =
+  Lam("m", Lam("n", Lam("f", 
+    App(V "m", App(V "n", V "f"))))) (*"λm.λn.λf.(m (n f))" *)
+
+(* Church boolean values *)
+let church_true = Lam("t", Lam("f", V "t")) (*"λt.λf.t" *)
+
+let church_false = Lam("t", Lam("f", V "f")) (*"λt.λf.f" *)
+
+(* If-then-else using Church booleans *)
+let church_if = Lam("p", Lam("a", Lam("b", App(App(V "p", V "a"), V "b")))) (*"λp.λa.λb.((p a) b)" *)
+
+(* Is-zero predicate *)
+let church_is_zero = Lam("n", App(App(V "n", Lam("_", church_false)), church_true)) (*"λn.((n λ_.λt.λf.f) λt.λf.t)" *)
+
+(* Test 1: Addition of Church numerals (1+2) *)
+let church_add_test = 
+  App(App(church_plus, church_one), church_two)
+
+(* Test 2: Multiplication of Church numerals (2*3) *)
+let church_mult_test = 
+  App(App(church_mult, church_two), church_three)
+
+(* Test 3: Is-zero predicate test *)
+let church_is_zero_test =
+  App(App(App(church_if, App(church_is_zero, church_zero)), church_one), church_two)
+
+let () = 
+  run_test "" church_is_zero_test;
