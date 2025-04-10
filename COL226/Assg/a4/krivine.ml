@@ -4,7 +4,7 @@
 type variable = string
 type lamexp = 
   | V of variable              (* Variable x *)
-  | Lam of variable * lamexp   (* Lambda abstraction λx.e *)
+  | Lam of variable * lamexp   (* Lambda Lamtraction λx.e *)
   | App of lamexp * lamexp     (* Application (e1 e2) *)
   | Num of int                 (* Integer constant *)
   | Bl of bool               (* Boolean constant *)
@@ -340,18 +340,3 @@ let cbn expr =
   let (final_closure, _) = krivine initial_state in
   let result = unload(final_closure) in
   result
-
-(* Run tests with optional debug mode toggle *)
-let run_test ?(debug=false) name expr =
-  Printf.printf "\n===== TEST: %s =====\n" name;
-  Printf.printf "Expression: %s\n" (string_of_lamexp expr);
-  
-  let result = cbn expr in
-  Printf.printf "Result: %s\n" (string_of_lamexp result);
-  
-  Printf.printf "\n";;
-
-let t1 = App(Lam("x", Lam("y", Plus(V "x", V "y"))), Num 3);;
-
-let () = 
-  run_test "Test 1" t1;
