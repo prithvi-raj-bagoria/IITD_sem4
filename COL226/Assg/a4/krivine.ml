@@ -1,6 +1,6 @@
-(* krivine.ml - Extended Implementation of Krivine machine for call-by-name lambda calculus *)
+(* krivine.ml -  Krivine machine for call-by-name lambda calculus *)
 
-(* Extended lambda calculus expressions *)
+(* Lambda calculus expressions *)
 type variable = string
 type lamexp = 
   | V of variable              (* Variable x *)
@@ -106,7 +106,6 @@ let rec krivine (focus_closure, stack) =
        | None -> 
            if !debug_mode then Printf.printf "   ✗ '%s' is free (evaluation stops)\n" x;
            (focus_closure, stack))
-  
   | Closure(App(e1, e2), gamma) ->
       if !debug_mode then begin
         Printf.printf "⟹ APP: Pushing argument and focusing on function\n";
@@ -234,37 +233,100 @@ let rec krivine (focus_closure, stack) =
       let new_gamma = (x, e1_closure) :: gamma in
       krivine (Closure(e2, new_gamma), stack)
 
-(* Unload function to convert closure to lambda term *)
+(* Unload function to convert closure to lambda term with normalization *)
 let rec unload (Closure(e, gamma)) =
-  match e with
-  | V x ->
-      (match List.assoc_opt x gamma with
-       | Some cl -> unload cl (* Closure associated to var x in gamma *)
-       | None -> V x)       (* Free variable remains as is *)
+  let result = 
+    match e with
+    | V x ->
+        (match List.assoc_opt x gamma with
+         | Some cl -> unload cl (* Closure associated to var x in gamma *)
+         | None -> V x)       (* Free variable remains as is *)
+    
+    | Lam(x, body) ->
+        (* To avoid variable capture, remove x from env when unloading body *)
+        let gamma' = List.remove_assoc x gamma in
+        Lam(x, unload (Closure(body, gamma')))
+    
+    | App(e1, e2) ->
+        App(unload (Closure(e1, gamma)), unload (Closure(e2, gamma)))
+        
+    | Num n -> Num n
+    | Bl b -> Bl b
+    | Plus(e1, e2) -> Plus(unload(Closure(e1, gamma)), unload(Closure(e2, gamma)))
+    | Times(e1, e2) -> Times(unload(Closure(e1, gamma)), unload(Closure(e2, gamma)))
+    | And(e1, e2) -> And(unload(Closure(e1, gamma)), unload(Closure(e2, gamma)))
+    | Or(e1, e2) -> Or(unload(Closure(e1, gamma)), unload(Closure(e2, gamma)))
+    | Not(e) -> Not(unload(Closure(e, gamma)))
+    | Eq(e1, e2) -> Eq(unload(Closure(e1, gamma)), unload(Closure(e2, gamma)))
+    | Gt(e1, e2) -> Gt(unload(Closure(e1, gamma)), unload(Closure(e2, gamma)))
+    | IfTE(e1, e2, e3) -> 
+        IfTE(unload(Closure(e1, gamma)), 
+             unload(Closure(e2, gamma)), 
+             unload(Closure(e3, gamma)))
+    | Let(x, e1, e2) -> 
+        Let(x, unload(Closure(e1, gamma)), unload(Closure(e2, (x, Closure(e1, gamma)) :: gamma)))
+  in
+  normalize_church result
   
-  | Lam(x, body) ->
-      (* To avoid variable capture, remove x from env when unloading body *)
-      let gamma' = List.remove_assoc x gamma in
-      Lam(x, unload (Closure(body, gamma')))
-  
-  | App(e1, e2) ->
-      App(unload (Closure(e1, gamma)), unload (Closure(e2, gamma)))
+(* Normalize Church numerals and expressions *)
+and normalize_church expr =
+  match expr with
+  | Lam(f, Lam(x, body)) ->
+      let count = count_church_apps f x body in
+      if count >= 0 then
+        let rec build n = if n = 0 then V x else App(V f, build (n-1)) in
+        Lam(f, Lam(x, build count))
+      else
+        Lam(f, Lam(x, normalize_church body))
       
+  | App(e1, e2) -> 
+      let n1 = normalize_church e1 in
+      let n2 = normalize_church e2 in
+      (match n1 with
+      | Lam(x, body) -> normalize_church (substitute body x n2)
+      | _ -> App(n1, n2))
+  
+  | Plus(e1, e2) -> Plus(normalize_church e1, normalize_church e2)
+  | Times(e1, e2) -> Times(normalize_church e1, normalize_church e2)
+  | And(e1, e2) -> And(normalize_church e1, normalize_church e2)
+  | Or(e1, e2) -> Or(normalize_church e1, normalize_church e2)
+  | Not(e) -> Not(normalize_church e)
+  | Eq(e1, e2) -> Eq(normalize_church e1, normalize_church e2)
+  | Gt(e1, e2) -> Gt(normalize_church e1, normalize_church e2)
+  | IfTE(e1, e2, e3) -> IfTE(normalize_church e1, normalize_church e2, normalize_church e3)
+  | Let(x, e1, e2) -> Let(x, normalize_church e1, normalize_church e2)
+  | _ -> expr
+
+(* Helper: Count applications of f to x in body *)
+and count_church_apps f x expr =
+  match expr with
+  | V var when var = x -> 0
+  | App(V var, rest) when var = f -> 
+      let n = count_church_apps f x rest in
+      if n >= 0 then n + 1 else -1
+  | _ -> -1  (* Not a Church numeral *)
+
+(* Substitute helper for beta reduction *)
+and substitute expr var replacement =
+  match expr with
+  | V x -> if x = var then replacement else V x
+  | Lam (x, body) -> 
+      if x = var then Lam(x, body) 
+      else Lam(x, substitute body var replacement)
+  | App(e1, e2) -> App(substitute e1 var replacement, substitute e2 var replacement)
   | Num n -> Num n
   | Bl b -> Bl b
-  | Plus(e1, e2) -> Plus(unload(Closure(e1, gamma)), unload(Closure(e2, gamma)))
-  | Times(e1, e2) -> Times(unload(Closure(e1, gamma)), unload(Closure(e2, gamma)))
-  | And(e1, e2) -> And(unload(Closure(e1, gamma)), unload(Closure(e2, gamma)))
-  | Or(e1, e2) -> Or(unload(Closure(e1, gamma)), unload(Closure(e2, gamma)))
-  | Not(e) -> Not(unload(Closure(e, gamma)))
-  | Eq(e1, e2) -> Eq(unload(Closure(e1, gamma)), unload(Closure(e2, gamma)))
-  | Gt(e1, e2) -> Gt(unload(Closure(e1, gamma)), unload(Closure(e2, gamma)))
-  | IfTE(e1, e2, e3) -> 
-      IfTE(unload(Closure(e1, gamma)), 
-           unload(Closure(e2, gamma)), 
-           unload(Closure(e3, gamma)))
-  | Let(x, e1, e2) -> 
-      Let(x, unload(Closure(e1, gamma)), unload(Closure(e2, (x, Closure(e1, gamma)) :: gamma)))
+  | Plus(e1,e2) -> Plus(substitute e1 var replacement, substitute e2 var replacement)
+  | Times(e1,e2) -> Times(substitute e1 var replacement, substitute e2 var replacement)
+  | And(e1,e2) -> And(substitute e1 var replacement, substitute e2 var replacement)
+  | Or(e1,e2) -> Or(substitute e1 var replacement, substitute e2 var replacement)
+  | Not e -> Not(substitute e var replacement)
+  | Eq(e1,e2) -> Eq(substitute e1 var replacement, substitute e2 var replacement)
+  | Gt(e1,e2) -> Gt(substitute e1 var replacement, substitute e2 var replacement)
+  | IfTE(e1,e2,e3) -> IfTE(substitute e1 var replacement, substitute e2 var replacement, substitute e3 var replacement)
+  | Let(x,e1,e2) ->
+      if x = var then Let(x, substitute e1 var replacement, e2)
+      else Let(x, substitute e1 var replacement, substitute e2 var replacement)
 
 (* Evaluate a lambda term using call-by-name semantics *)
 let cbn expr =
@@ -277,11 +339,6 @@ let cbn expr =
   let initial_state = (Closure(expr, []), []) in
   let (final_closure, _) = krivine initial_state in
   let result = unload(final_closure) in
-  if !debug_mode then begin
-    Printf.printf "\n════════════════════════════════════════\n";
-    Printf.printf "FINAL RESULT: %s\n" (string_of_lamexp result);
-    Printf.printf "════════════════════════════════════════\n\n";
-  end;
   result
 
 (* Run tests with optional debug mode toggle *)
@@ -294,29 +351,7 @@ let run_test ?(debug=false) name expr =
   
   Printf.printf "\n";;
 
-
-let id_exp = Lam ("x", V "x")
-let test_expr1 = App (id_exp, id_exp)
-
-(* Test 2: (λx. (λy. (x + y))) (λx. x)
-   Representing x + y as Plus(V "x", V "y") now
-*)
-let func_exp = Lam ("x", Lam ("y", Plus(V "x", V "y")))
-let test_expr2 = App (func_exp, id_exp)
-
-(* Test 3: Constant function
-   Define const = (λx. (λy. x))
-   When applied to two arguments (both id), it should yield id.
-*)
-let const_exp = Lam ("x", Lam ("y", V "x"))
-let test_expr3 = App (App (const_exp, id_exp), id_exp)
-
-(* Test 4: Composition function
-   Define compose = (λf. (λg. (λx. f (g x))))
-   When applied as (compose id id id), it should yield id.
-*)
-let compose_exp = Lam ("f", Lam ("g", Lam ("x", App (V "f", App (V "g", V "x")))))
-let test_expr4 = App (App (App (compose_exp, id_exp), id_exp), id_exp)
+let t1 = App(Lam("x", Lam("y", Plus(V "x", V "y"))), Num 3);;
 
 let () = 
-  run_test "" test_expr2
+  run_test "Test 1" t1;

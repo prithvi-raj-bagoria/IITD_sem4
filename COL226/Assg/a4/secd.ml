@@ -2,12 +2,12 @@
 
 (* Lambda calculus expressions *)
 type variable = string
-type lamexp =
+type lamexp = 
   | V of variable              (* Variable x *)
-  | App of lamexp * lamexp     (* Application (e1 e2) *)
   | Lam of variable * lamexp   (* Lambda abstraction λx.e *)
+  | App of lamexp * lamexp     (* Application (e1 e2) *)
   | Num of int                 (* Integer constant *)
-  | Bl of bool               (* Boolean constant *)
+  | Bl of bool                 (* Boolean constant *)
   | Plus of lamexp * lamexp    (* Addition e1 + e2 *)
   | Times of lamexp * lamexp   (* Multiplication e1 * e2 *)
   | And of lamexp * lamexp     (* Logical AND e1 && e2 *)
@@ -17,33 +17,6 @@ type lamexp =
   | Gt of lamexp * lamexp      (* Greater than e1 > e2 *)
   | IfTE of lamexp * lamexp * lamexp (* If-then-else: if e1 then e2 else e3 *)
   | Let of variable * lamexp * lamexp (* Let binding: let x = e1 in e2 *)
-
-(* Instruction set for the SECD machine *)
-type opcode =
-  | LOOKUP of variable     (* Look up a variable in the environment *)
-  | MkCLOS of variable * opcode list * lamexp  (* Create a closure *)
-  | CONST of int           (* Push integer constant *)
-  | BOOL of bool         (* Push boolean constant *)
-  | PLUS                   (* Addition operation *)
-  | TIMES                  (* Multiplication operation *)
-  | AND                    (* Logical AND operation *)
-  | OR                     (* Logical OR operation *)
-  | NOT                    (* Logical NOT operation *)
-  | EQ                     (* Equality test *)
-  | GT                     (* Greater than test *)
-  | IFTE of opcode list * opcode list  (* If-then-else *)
-  | LET of variable * opcode list      (* Let binding *)
-  | APP                    (* Function application *)
-  | RET                    (* Return from function *)
-
-  (* Value type for the SECD machine *)
-type value =
-| IntVal of int
-| BoolVal of bool
-| Clos of variable * opcode list * gamma * lamexp
-
-and closure = value  (* Closure is a specific kind of value *)
-and gamma = (variable * value) list  (* Environment mapping variables to values *)
 
 let rec string_of_lamexp = function
   | V x -> x
@@ -61,6 +34,38 @@ let rec string_of_lamexp = function
   | Gt (e1, e2) -> "(" ^ string_of_lamexp e1 ^ " > " ^ string_of_lamexp e2 ^ ")"
   | IfTE (e1, e2, e3) -> "if " ^ string_of_lamexp e1 ^ " then " ^ string_of_lamexp e2 ^ " else " ^ string_of_lamexp e3
   | Let (x, e1, e2) -> "let " ^ x ^ " = " ^ string_of_lamexp e1 ^ " in " ^ string_of_lamexp e2
+
+(* Instruction set for the SECD machine *)
+type opcode =
+  | LOOKUP of variable     (* Look up a variable in the environment *)
+  | MkCLOS of variable * opcode list * lamexp  (* Create a closure *)
+  | CONST of int           (* Push integer constant *)
+  | BOOL of bool           (* Push boolean constant *)
+  | PLUS                   (* Addition operation *)
+  | TIMES                  (* Multiplication operation *)
+  | AND                    (* Logical AND operation *)
+  | OR                     (* Logical OR operation *)
+  | NOT                    (* Logical NOT operation *)
+  | EQ                     (* Equality test *)
+  | GT                     (* Greater than test *)
+  | IFTE of opcode list * opcode list  (* If-then-else *)
+  | LET of variable * opcode list      (* Let binding *)
+  | APP                    (* Function application *)
+  | RET                    (* Return from function *)
+
+(* Value type for the SECD machine *)
+type value =
+| IntVal of int
+| BoolVal of bool
+| Clos of variable * opcode list * gamma * lamexp
+
+and closure = value  (* Closure is a specific kind of value *)
+and gamma = (variable * value) list  (* Environment mapping variables to values *)
+
+let rec string_of_value = function
+  | IntVal n -> string_of_int n
+  | BoolVal b -> if b then "true" else "false"
+  | Clos (_, _, _, orig) -> string_of_lamexp orig
 
 (* Compile an expression to a list of instructions *)
 let rec compile e =
@@ -80,11 +85,6 @@ let rec compile e =
   | IfTE (e1, e2, e3) -> (compile e1) @ [IFTE (compile e2, compile e3)]
   | Let (x, e1, e2) -> (compile e1) @ [LET (x, compile e2)]
   
-let rec string_of_value = function
-  | IntVal n -> string_of_int n
-  | BoolVal b -> if b = true then "true" else "false"
-  | Clos (_, _, _, orig) -> string_of_lamexp orig
-
 (* Add substitution function *)
 let rec substitute expr var replacement =
   match expr with
@@ -107,12 +107,54 @@ let rec substitute expr var replacement =
       if x = var then Let(x, substitute e1 var replacement, e2)
       else Let(x, substitute e1 var replacement, substitute e2 var replacement)
       
-(* Modify unload_value to perform environment substitution *)
+(* Add Church numeral normalization and related functions *)
+
+(* Normalize Church numerals and expressions *)
+let rec normalize_church expr =
+  match expr with
+  | Lam(f, Lam(x, body)) ->
+      let count = count_church_apps f x body in
+      if count >= 0 then
+        let rec build n = if n = 0 then V x else App(V f, build (n-1)) in
+        Lam(f, Lam(x, build count))
+      else
+        Lam(f, Lam(x, normalize_church body))
+      
+  | App(e1, e2) -> 
+      let n1 = normalize_church e1 in
+      let n2 = normalize_church e2 in
+      (match n1 with
+      | Lam(x, body) -> normalize_church (substitute body x n2)
+      | _ -> App(n1, n2))
+  
+  | Plus(e1, e2) -> Plus(normalize_church e1, normalize_church e2)
+  | Times(e1, e2) -> Times(normalize_church e1, normalize_church e2)
+  | And(e1, e2) -> And(normalize_church e1, normalize_church e2)
+  | Or(e1, e2) -> Or(normalize_church e1, normalize_church e2)
+  | Not(e) -> Not(normalize_church e)
+  | Eq(e1, e2) -> Eq(normalize_church e1, normalize_church e2)
+  | Gt(e1, e2) -> Gt(normalize_church e1, normalize_church e2)
+  | IfTE(e1, e2, e3) -> IfTE(normalize_church e1, normalize_church e2, normalize_church e3)
+  | Let(x, e1, e2) -> Let(x, normalize_church e1, normalize_church e2)
+  | _ -> expr
+
+(* Helper: Count applications of f to x in body *)
+and count_church_apps f x expr =
+  match expr with
+  | V var when var = x -> 0
+  | App(V var, rest) when var = f -> 
+      let n = count_church_apps f x rest in
+      if n >= 0 then n + 1 else -1
+  | _ -> -1  (* Not a Church numeral *)
+
+(* Modify unload_value to include Church numeral normalization *)
 let rec unload_value = function
   | IntVal n -> Num n
   | BoolVal b -> Bl b
   | Clos (_, _, env, orig) ->
-      List.fold_left (fun acc (x, v) -> substitute acc x (unload_value v)) orig env
+      let result = List.fold_left 
+        (fun acc (x, v') -> substitute acc x (unload_value v')) orig env in
+      normalize_church result
       
 (* The SECD machine state: (Stack, Environment, Control, Dump) *)
 type state = value list * gamma * opcode list * (value list * gamma * opcode list) list
@@ -148,7 +190,7 @@ let rec secd_machine state =
              let v = List.assoc x e in
              secd_machine (v :: s, e, c, d)
            with Not_found ->
-             raise (Secd_Error ("Unbound variable: " ^ x)))
+              raise (Secd_Error ("Variable " ^ x ^ " not found in environment")))
       | CONST n ->
           secd_machine (IntVal n :: s, e, c, d)
       | BOOL b ->
@@ -168,32 +210,32 @@ let rec secd_machine state =
       | AND ->
           (match s with
            | BoolVal b2 :: BoolVal b1 :: s' ->
-               secd_machine (BoolVal (if b1 = true && b2 = true then true else false) :: s', e, c, d)
+               secd_machine (BoolVal (b1 && b2) :: s', e, c, d)
            | _ -> raise (Secd_Error "AND expects two booleans"))
       | OR ->
           (match s with
            | BoolVal b2 :: BoolVal b1 :: s' ->
-               secd_machine (BoolVal (if b1 = true || b2 = true then true else false) :: s', e, c, d)
+               secd_machine (BoolVal (b1 || b2) :: s', e, c, d)
            | _ -> raise (Secd_Error "OR expects two booleans"))
       | NOT ->
           (match s with
            | BoolVal b :: s' ->
-               secd_machine (BoolVal (if b = true then false else true) :: s', e, c, d)
+               secd_machine (BoolVal (not b) :: s', e, c, d)
            | _ -> raise (Secd_Error "NOT expects one boolean"))
       | EQ ->
           (match s with
            | IntVal n2 :: IntVal n1 :: s' ->
-               secd_machine (BoolVal (if n1 = n2 then true else false) :: s', e, c, d)
+               secd_machine (BoolVal (n1 = n2) :: s', e, c, d)
            | _ -> raise (Secd_Error "EQ expects two integers"))
       | GT ->
           (match s with
            | IntVal n2 :: IntVal n1 :: s' ->
-               secd_machine (BoolVal (if n1 > n2 then true else false) :: s', e, c, d)
+               secd_machine (BoolVal (n1 > n2) :: s', e, c, d)
            | _ -> raise (Secd_Error "GT expects two integers"))
       | IFTE (ct, cf) ->
           (match s with
            | BoolVal b :: s' ->
-               if b = true then
+               if b then
                  secd_machine (s', e, ct @ c, d)
                else
                  secd_machine (s', e, cf @ c, d)
@@ -205,7 +247,7 @@ let rec secd_machine state =
            | _ -> raise (Secd_Error "LET expects a value on stack"))
       | APP ->
           (match s with
-           | arg :: Clos (x, code, env_cl, orig) :: s' ->
+           | arg :: Clos (x, code, env_cl, _) :: s' ->
                secd_machine ([], (x, arg)::env_cl, code, (s', e, c)::d)
            | _ -> raise (Secd_Error "APP expects a closure and an argument on stack"))
       | RET ->
@@ -229,43 +271,73 @@ let secd expr =
   let instructions = compile expr in
   let result = secd_machine ([], [], instructions, []) in
   let unloaded = unload_value result in
-  
-  (* Debug mode specific output *)
-  if !debug_mode then (
-    Printf.printf "\n════════════════════════════════════════\n";
-    Printf.printf "SECD DEBUG INFO:\n";
-    Printf.printf "SECD UNLOADED RESULT: %s\n" (string_of_lamexp unloaded);
-    Printf.printf "════════════════════════════════════════\n\n";
-  );
-  
   (* Always print the result, regardless of debug mode *)
-  Printf.printf "RESULT: %s\n" (string_of_value result);
-  
+  Printf.printf "RESULT: %s\n" (string_of_lamexp unloaded);
   result
 
 (* Run tests with optional debug mode toggle *)
 let run_test ?(debug=false) name expr =
   Printf.printf "\n===== TEST: %s =====\n" name;
   Printf.printf "Expression: %s\n" (string_of_lamexp expr);
-  
-  
+
   let _ = secd expr in
+  
   Printf.printf "\n";;
 
-(* Global test definitions *)
-let id_exp = Lam ("x", V "x")
-let test_expr1 = App (id_exp, id_exp)
+(* TEST CASE 1: Function application with primitive addition *)
+let test1 =
+  App(
+    Lam("x", Lam("y", Plus(V "x", V "y"))),
+    Lam("x", V "x")
+  )
 
-(* Test 2: (λx. (λy. (x + y))) (λx. x)
-   Use Plus instead of applying the variable "+" *)
-let func_exp = Lam ("x", Lam ("y", Plus (V "x", V "y")))
-let test_expr2 = App (func_exp, id_exp)
+(* TEST CASE 2: Church numeral addition (2+1) *)
+let test2 =
+  App(
+    App(
+      Lam("m", Lam("n", Lam("f", Lam("x", App(App(V "m", V "f"), App(App(V "n", V "f"), V "x")))))),
+      Lam("f", Lam("x", App(V "f", App(V "f", V "x"))))
+    ),
+    Lam("f", Lam("x", App(V "f", V "x")))
+  )
 
-let const_exp = Lam ("x", Lam ("y", V "x"))
-let test_expr3 = App (App (const_exp, id_exp), id_exp)
+(* TEST CASE 3: Church successor (succ 2) *)
+let test3 =
+  App(
+    Lam("n", Lam("f", Lam("x", App(V "f", App(App(V "n", V "f"), V "x"))))),
+    Lam("f", Lam("x", App(V "f", App(V "f", V "x"))))
+  )
 
-let compose_exp = Lam ("f", Lam ("g", Lam ("x", App (V "f", App (V "g", V "x")))))
-let test_expr4 = App (App (App (compose_exp, id_exp), id_exp), id_exp)
+(* TEST CASE 4: Church conditional (if true then 1 else 0) *)
+let test4 =
+  App(
+    App(
+      App(
+        Lam("p", Lam("a", Lam("b", App(App(V "p", V "a"), V "b")))),
+        Lam("t", Lam("f", V "t"))
+      ),
+      Lam("f", Lam("x", App(V "f", V "x")))
+    ),
+    Lam("f", Lam("x", V "x"))
+  )
 
-let () = 
-  run_test "SECD Test 2" test_expr4
+(* TEST CASE 5: Church conditional (if false then 1 else 0) *)
+let test5 =
+  App(
+    App(
+      App(
+        Lam("p", Lam("a", Lam("b", App(App(V "p", V "a"), V "b")))),
+        Lam("t", Lam("f", V "f"))  (* Church false *)
+      ),
+      Lam("f", Lam("x", App(V "f", V "x")))  (* Church numeral 1 *)
+    ),
+    Lam("f", Lam("x", V "x"))  (* Church numeral 0 *)
+  )
+
+(* Run only the provided test cases *)
+let () =
+  run_test "Test Case 1: Function application with primitive addition" test1;
+  run_test "Test Case 2: Church numeral addition (2+1)" test2;
+  run_test "Test Case 3: Church successor (succ 2)" test3;
+  run_test "Test Case 4: Church conditional (if true then 1 else 0)" test4;
+  run_test "Test Case 5: Church conditional (if false then 1 else 0)" test5;
