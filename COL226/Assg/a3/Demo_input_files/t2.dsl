@@ -1,19 +1,25 @@
-import Matrix
+// Linear algebra operations using matrix operations
 
-A = input(t2_A.txt)
-B = input(t2_B.txt)
-D = input(t2_D.txt)
-u = input(t2_u.txt)
+// Load input data
+matrix A := input(Demo_input_files/t2_A.txt);
+matrix B := input(Demo_input_files/t2_B.txt);
+matrix D := input(Demo_input_files/t2_D.txt);
+vector u := input(Demo_input_files/t2_u.txt);
 
-C = Matrix.add(A, B)
+// Matrix addition
+matrix C := A + B;
 
-E = Matrix.multiply(C, D)
+// Matrix multiplication
+matrix E := C * D;
 
-if Matrix.determinant(E) != 0:
-    E_inverse = Matrix.inverse(E)
-    x = Matrix.vector_multiply(E_inverse, u)
-    print(x)
-else:
-    raise MatrixNotInvertible
-
-// Here t2_A.txt, t2_B.txt have 4 x 5 float matrix, t2_D.txt has 5 x 4 float matrix, and t2_u.txt has a 4 x 1 float vector
+// Check if invertible and solve linear system
+float det_val := det(E);
+if (det_val != 0.0) {
+    // Compute inverse and solve for x
+    matrix E_inv := inverse(E);
+    vector x := E_inv * u;
+    print(x);
+}
+else {
+    print(9999999);  // Error code for non-invertible matrix
+}
