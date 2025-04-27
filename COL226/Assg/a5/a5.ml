@@ -14,24 +14,30 @@ module Term = struct
   let check_sig (sig_list : (string * int) list) : bool =
     let valid_arities = List.for_all (fun (_, arity) -> arity >= 0) sig_list in
     let symbol_names = List.map fst sig_list in
-    let rec has_duplicates s = match s with
-      | [] -> false
-      | x::xs -> List.mem x xs || has_duplicates xs
+    let has_duplicates lst =
+      let seen = Hashtbl.create (List.length lst) in
+      let rec check = function
+        | [] -> false
+        | x::xs -> 
+            if Hashtbl.mem seen x then true
+            else (Hashtbl.add seen x true; check xs)
+      in
+      check lst
     in
+    
     valid_arities && not (has_duplicates symbol_names)
 
   (* Well-formed term check *)
   let wfterm (signature : (string * int) list) (t : term) : bool =
+    let sig_map = Hashtbl.create (List.length signature) in
+    List.iter (fun (sym, arity) -> Hashtbl.add sig_map sym arity) signature;
+    
     let rec is_wf t = match t with
       | V _ -> true
       | Node ((sym, _), subterms) ->
-        let expected_arity = 
-        match List.find_opt (fun (s, _) -> s = sym) signature with
-        | Some (_, arity) -> Some arity
-        | None -> None
-          in
-          match expected_arity with
-          | Some arity -> Array.length subterms = arity && Array.fold_left (fun acc subterm -> acc && is_wf subterm) true subterms
+          match Hashtbl.find_opt sig_map sym with
+          | Some arity -> Array.length subterms = arity && 
+                          Array.for_all is_wf subterms
           | None -> false
     in
     is_wf t
@@ -40,31 +46,26 @@ module Term = struct
   let rec ht (t : term) : int = match t with
       | V _ -> 0
       | Node (_, subterms) ->
-          if Array.length subterms = 0 then 0
-          else 1 + Array.fold_left max 0 (Array.map ht subterms)
+          1 + Array.fold_left max (-1) (Array.map ht subterms)
 
   (* Size of a term *)
-  let size (t : term) : int =
-    let rec count = function
+  let rec size (t : term) : int = match t with
       | V _ -> 1
       | Node (_, subterms) ->
-          1 + Array.fold_left (+) 0 (Array.map count subterms)
-    in
-    count t
+          1 + Array.fold_left (+) 0 (Array.map size subterms)
 
-  (* Variables in a term *)
+  (* Variables in a term - optimized with hashtable *)
   let vars (t : term) : variable list =
-    let rec collect = function
-      | V x -> [x]
+    let var_set = Hashtbl.create 10 in
+    let rec collect term =
+      match term with
+      | V x -> Hashtbl.replace var_set x true
       | Node (_, subterms) ->
-          Array.fold_left (fun acc t -> (collect t) @ acc) [] subterms
+          Array.iter collect subterms
     in
-    let rec unique = function
-      | [] -> []
-      | x::xs -> if List.mem x xs then unique xs else x :: unique xs
-    in
-    unique (collect t)
-
+    collect t;
+    Hashtbl.fold (fun var _ acc -> var :: acc) var_set []
+    
   (* Occurs check *)
   let rec occurs (x : variable) (t : term) : bool =
     match t with
