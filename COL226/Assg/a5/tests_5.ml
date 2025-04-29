@@ -1,4 +1,4 @@
-open A5
+open Main.Terms
 
 let test_case description f =
   try
