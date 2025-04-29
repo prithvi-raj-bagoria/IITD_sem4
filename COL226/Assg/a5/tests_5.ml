@@ -1,4 +1,4 @@
-open Main.Terms
+open A5.Term
 
 let test_case description f =
   try
@@ -51,10 +51,9 @@ let t_complex = Node(("f", 2), [|
       Node(("g", 1), [| Node(("g", 1), [| V "x" |]) |]);
     Node(("g", 1), [| Node(("g", 1), [| Node(("g", 1), [| V "y" |]) |]) |])
   |]) 
-let sub1 x = if x = "x" then Node(("h", 0), [||]) else V x
-let sub2 x = if x = "y" then Node(("h", 0), [||]) else V x 
-let t_subbed = subst sub1 t_complex
-let compose sub1 sub2 x = subst sub1 (sub2 x)
+let sub1 = [("x", Node(("h", 0), [||]))]
+let sub2 = [("y", Node(("h", 0), [||]))]
+let t_subbed = subst t_complex sub1
 let comp = compose sub1 sub2
 
 let () = test_case "ht t_complex" (fun () -> 
@@ -64,7 +63,8 @@ let () = test_case "size t_complex" (fun () ->
   assert (size t_complex = 8)
 )
 let () = test_case "vars t_complex" (fun () -> 
-  assert (Array.to_list (vars t_complex) = ["x"; "y"])
+  let var_list = vars t_complex in
+  assert (List.sort compare var_list = ["x"; "y"])
 )
 
 (* ---------- SUBSTITUTION AND COMPOSITION TESTS ---------- *)
@@ -74,13 +74,13 @@ let () = test_case "subst sub1 size" (fun () ->
 )
 
 let () = test_case "compose sub1 sub2 on x" (fun () -> 
-  match subst comp (V "x") with Node(("h", 0), [||]) -> () | _ -> assert false
+  match subst (V "x") comp with Node(("h", 0), [||]) -> () | _ -> assert false
 )
 let () = test_case "compose sub1 sub2 on y" (fun () -> 
-  match subst comp (V "y") with Node(("h", 0), [||]) -> () | _ -> assert false
+  match subst (V "y") comp with Node(("h", 0), [||]) -> () | _ -> assert false
 )
 let () = test_case "compose sub1 sub2 on z" (fun () -> 
-  match subst comp (V "z") with V "z" -> () | _ -> assert false
+  match subst (V "z") comp with V "z" -> () | _ -> assert false
 )
 
 (* ---------- MGU TESTS ---------- *)
@@ -88,40 +88,40 @@ let () = test_case "compose sub1 sub2 on z" (fun () ->
 let () = test_case "mgu trivial unification" (fun () ->
   let t1 = V "x" and t2 = V "x" in
   let u = mgu t1 t2 in
-  assert (subst u t1 = subst u t2)
+  assert (subst t1 u = subst t2 u)
 )
 
 let () = test_case "mgu unify variable with node" (fun () ->
   let t1 = V "x" in
   let t2 = Node(("h", 0), [||]) in
   let u = mgu t1 t2 in
-  assert (subst u t1 = subst u t2)
+  assert (subst t1 u = subst t2 u)
 )
 
 let () = test_case "mgu failure due to occurs check" (fun () ->
   let t1 = V "x" in
   let t2 = Node(("g", 1), [| V "x" |]) in
-  (try let _ = mgu t1 t2 in assert false with NotUnifiable -> ())
+  (try let _ = mgu t1 t2 in assert false with NOT_UNIFIABLE -> ())
 )
 
 let () = test_case "mgu non-trivial unification" (fun () ->
   let t1 = Node(("f", 2), [| V "x"; Node(("h", 0), [||]) |]) in
   let t2 = Node(("f", 2), [| Node(("g", 1), [| V "z" |]); V "y" |]) in
   let u = mgu t1 t2 in
-  assert (subst u t1 = subst u t2)
+  assert (subst t1 u = subst t2 u)
 )
 
 let () = test_case "mgu failure due to symbol mismatch" (fun () ->
   let t1 = Node(("f", 2), [| V "x"; V "y" |]) in
   let t2 = Node(("g", 2), [| V "x"; V "y" |]) in
-  (try let _ = mgu t1 t2 in assert false with NotUnifiable -> ())
+  (try let _ = mgu t1 t2 in assert false with NOT_UNIFIABLE -> ())
 )
 
 (* ---------- EDIT TESTS ---------- *)
 
 let () = test_case "edit test" (fun () ->
   let t_editable = Node(("f", 2), [| V "x"; V "y" |]) in
-  let edited = edit t_editable [|0|] (Node(("h", 0), [||])) in
+  let edited = edit t_editable [0] (Node(("h", 0), [||])) in
   match edited with
   | Node(("f", 2), [| Node(("h", 0), [||]); V "y" |]) -> ()
   | _ -> assert false
@@ -129,10 +129,10 @@ let () = test_case "edit test" (fun () ->
 
 (* ---------- IN-PLACE SUBSTITUTION TESTS ---------- *)
 
-let () = test_case "inplace_subst test" (fun () ->
+let () = test_case "in_place_subst test" (fun () ->
   let t = Node(("f", 2), [| V "x"; Node(("g", 1), [| V "y" |]) |]) in
-  let sub x = if x = "x" then Node(("h", 0), [||]) else if x = "y" then Node(("h", 0), [||]) else V x in
-  inplace_subst sub t;
+  let sub = [("x", Node(("h", 0), [||])); ("y", Node(("h", 0), [||]))] in
+  let _ = in_place_subst t sub in
   match t with
   | Node(("f", 2), [| Node(("h", 0), [||]); Node(("g", 1), [| Node(("h", 0), [||]) |]) |]) -> ()
   | _ -> assert false
